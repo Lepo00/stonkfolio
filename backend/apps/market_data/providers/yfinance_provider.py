@@ -25,3 +25,11 @@ class YFinancePriceProvider(PriceProvider):
         t = yf.Ticker(ticker)
         df = t.history(start=str(start), end=str(end))
         return [PricePoint(date=row.Index.date(), price=Decimal(str(row.Close))) for row in df.itertuples()]
+
+    def get_ohlcv(self, ticker: str, period: str, interval: str):
+        """Fetch OHLC+Volume data from yfinance. Returns a pandas DataFrame."""
+        t = yf.Ticker(ticker)
+        df = t.history(period=period, interval=interval, timeout=10)
+        if df.empty:
+            raise ValueError(f"No OHLCV data for {ticker} (period={period})")
+        return df
