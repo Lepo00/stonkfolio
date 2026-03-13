@@ -36,6 +36,7 @@ Add interactive financial charts (candlestick, line, volume, indicators) to the 
 **Default period:** `6M` (when `period` query param is omitted)
 
 **Time format in response:**
+
 - Daily/weekly intervals: date string `"2025-01-15"` (YYYY-MM-DD)
 - Intraday intervals (1D, 1W): Unix timestamp in seconds (e.g., `1736942400`) — required by Lightweight Charts for intraday data
 
@@ -66,25 +67,28 @@ Add interactive financial charts (candlestick, line, volume, indicators) to the 
 ### Implementation Details
 
 **Provider architecture (follows existing pattern):**
+
 1. Add abstract method `get_ohlcv(ticker: str, period: str, interval: str) -> pd.DataFrame` to `PriceProvider` base class (`market_data/providers/base.py`)
 2. Implement in `YFinancePriceProvider` — calls `yf.Ticker(ticker).history(period=period, interval=interval)`, returns DataFrame with OHLC+Volume columns
 3. Add pass-through `get_ohlcv()` on `MarketDataService` (`market_data/services.py`) that delegates to the provider (consistent with existing `get_current_price` pattern)
 4. Returns floats (not Decimal) since chart data is display-only, not financial calculations
 
 **Indicator calculation — new utility `backend/apps/market_data/indicators.py`:**
+
 - `calculate_sma(closes: pd.Series, window: int) -> list[dict]` — rolling mean, returns list of `{time, value}` dicts
 - `calculate_rsi(closes: pd.Series, window: int = 14) -> list[dict]` — standard RSI formula (avg gain / avg loss), returns list of `{time, value}` dicts
 - **Insufficient data handling:** If fewer data points than the window size, the indicator array is returned partially filled — starting from the first calculable point. Example: SMA 20 with 15 data points → `sma_20: []` (empty). SMA 20 with 25 data points → `sma_20` has 6 entries (points 20-25). This matches how pandas `rolling().mean()` naturally works (NaN for initial window, which we drop).
 - This also deduplicates the SMA logic currently inline in `InstrumentAnalysisView`
 
 **New view:** `InstrumentChartView` in `backend/apps/instruments/views.py`
+
 - Uses DRF default authentication (same as existing `InstrumentDetailView` and `InstrumentAnalysisView`)
 - Validates period parameter against allowed values, returns 400 for invalid period
 - Returns 400 if instrument has no ticker (same pattern as `InstrumentAnalysisView`)
 - Looks up instrument by PK (404 if not found), gets ticker
 - Calls `MarketDataService.get_ohlcv()` with mapped yfinance period/interval
 - Computes indicators via `market_data/indicators.py`
-- yfinance call timeout: 10 seconds (pass `timeout=10` to yfinance). Returns 504 on timeout.
+- yfinance call timeout: 10 seconds (pass `timeout=10` to yfinance). Returns 502 on any upstream failure (yfinance doesn't expose distinct timeout exceptions).
 - Returns computed OHLC + indicators
 
 **New serializer:** Not needed — response is a simple dict, not model-backed.
@@ -102,6 +106,7 @@ Add interactive financial charts (candlestick, line, volume, indicators) to the 
 ### New Files
 
 **`frontend/src/components/charts/instrument-chart.tsx`**
+
 - Main chart wrapper component
 - Props: `instrumentId: number`
 - Manages chart instance lifecycle (create on mount, destroy on unmount via `useRef` + `useEffect`)
@@ -112,6 +117,7 @@ Add interactive financial charts (candlestick, line, volume, indicators) to the 
 - Responsive: uses `ResizeObserver` to resize charts when container changes width
 
 **`frontend/src/components/charts/chart-toolbar.tsx`**
+
 - Props: `period`, `onPeriodChange`, `viewType`, `onViewTypeChange`, `indicators`, `onIndicatorsChange`
 - Period buttons: 1D, 1W, 1M, 3M, 6M, 1Y, ALL
 - View toggle: Candlestick / Line (two buttons or a toggle)
@@ -153,13 +159,16 @@ export async function getInstrumentChart(id: number, period: string): Promise<Ch
 ### Integration into Instrument Detail Page
 
 **`frontend/src/app/(app)/instrument/[id]/page.tsx`** — modified:
+
 - Import and render `<InstrumentChart instrumentId={id} />` between the price/details cards and the AI analysis card
 - Chart component handles its own data fetching, period state, and view state internally
 
 ### Chart Behavior
 
 **Series types:**
+
 - **Candlestick view:** `CandlestickSeries` for OHLC data
+
 - **Line view:** `LineSeries` using close prices
 - **Volume:** `HistogramSeries` overlaid on price chart with secondary price scale (`priceScaleId: 'volume'`, scaled to ~20% of chart height), bars colored green (close > open) or red (close <= open)
 - **SMA 20:** `LineSeries` overlay, blue color, togglable
@@ -167,17 +176,20 @@ export async function getInstrumentChart(id: number, period: string): Promise<Ch
 - **RSI 14:** `LineSeries` in separate chart instance below the main chart, with horizontal lines at 30 and 70
 
 **Interactions:**
+
 - Crosshair: built-in on each chart, synced between main and RSI via `subscribeCrosshairMove`
 - Zoom: mouse scroll
 - Pan: click-drag
 - Mobile: pinch-to-zoom
 
 **Theming:**
+
 - Read from `theme-context`
 - Light: white background, dark grid lines, green/red candles
 - Dark: dark background (#1a1a2e or similar), subtle grid, green/red candles
 
 **Data fetching:**
+
 - TanStack Query key: `["instrument-chart", instrumentId, period]` — period changes trigger fresh fetches
 - Stale time: 5 minutes
 - Loading state: Show skeleton/spinner inside the chart card while data loads
@@ -198,11 +210,13 @@ export async function getInstrumentChart(id: number, period: string): Promise<Ch
 ## Testing
 
 **Backend:**
+
 - Test `get_ohlcv()` method with mocked yfinance response
 - Test `InstrumentChartView` — valid period, invalid period (400), nonexistent instrument (404)
 - Test SMA and RSI calculation with known data
 
 **Frontend:**
+
 - Test toolbar renders period buttons and toggles
 - Test that chart component mounts and calls the API
 - Test loading/error states
