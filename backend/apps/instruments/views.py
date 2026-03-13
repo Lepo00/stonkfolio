@@ -6,6 +6,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.market_data.indicators import calculate_rsi, calculate_sma
 from apps.market_data.services import MarketDataService
 
 from .models import Instrument
@@ -186,3 +187,70 @@ class InstrumentAnalysisView(APIView):
                 "monthly_change_pct": f"{monthly_change:.2f}",
             },
         }
+
+
+CHART_PERIOD_MAP = {
+    "1D": ("1d", "5m"),
+    "1W": ("5d", "15m"),
+    "1M": ("1mo", "1d"),
+    "3M": ("3mo", "1d"),
+    "6M": ("6mo", "1d"),
+    "1Y": ("1y", "1d"),
+    "ALL": ("max", "1wk"),
+}
+
+
+class InstrumentChartView(APIView):
+    """OHLCV chart data with technical indicators."""
+
+    def get(self, request, pk):
+        try:
+            instrument = Instrument.objects.get(pk=pk)
+        except Instrument.DoesNotExist:
+            return Response({"error": "Instrument not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        if not instrument.ticker:
+            return Response({"error": "No ticker available for chart data"}, status=status.HTTP_400_BAD_REQUEST)
+
+        period = request.query_params.get("period", "6M")
+        if period not in CHART_PERIOD_MAP:
+            return Response(
+                {"error": f"Invalid period. Allowed: {', '.join(CHART_PERIOD_MAP.keys())}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        yf_period, yf_interval = CHART_PERIOD_MAP[period]
+
+        try:
+            service = MarketDataService()
+            df = service.get_ohlcv(instrument, yf_period, yf_interval)
+        except Exception:
+            logger.exception("Failed to fetch chart data for instrument %s", pk)
+            return Response({"error": "Chart data temporarily unavailable"}, status=status.HTTP_502_BAD_GATEWAY)
+
+        is_intraday = yf_interval in ("5m", "15m")
+        ohlc = []
+        for idx, row in df.iterrows():
+            time_val = int(idx.timestamp()) if is_intraday else str(idx.date())
+            ohlc.append({
+                "time": time_val,
+                "open": round(float(row["Open"]), 4),
+                "high": round(float(row["High"]), 4),
+                "low": round(float(row["Low"]), 4),
+                "close": round(float(row["Close"]), 4),
+                "volume": int(row["Volume"]),
+            })
+
+        closes = df["Close"].astype(float)
+        indicators = {
+            "sma_20": calculate_sma(closes, window=20, intraday=is_intraday),
+            "sma_50": calculate_sma(closes, window=50, intraday=is_intraday),
+            "rsi_14": calculate_rsi(closes, window=14, intraday=is_intraday),
+        }
+
+        return Response({
+            "ticker": instrument.ticker,
+            "currency": instrument.currency,
+            "ohlc": ohlc,
+            "indicators": indicators,
+        })
