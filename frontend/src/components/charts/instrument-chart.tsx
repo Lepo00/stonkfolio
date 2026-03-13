@@ -55,8 +55,6 @@ export function InstrumentChart({ instrumentId }: InstrumentChartProps) {
     sma50: true,
     rsi: false,
   });
-  const [chartVersion, setChartVersion] = useState(0);
-
   const { resolvedTheme } = useTheme();
   const colors = resolvedTheme === "dark" ? DARK_THEME : LIGHT_THEME;
 
@@ -95,8 +93,6 @@ export function InstrumentChart({ instrumentId }: InstrumentChartProps) {
     };
     const observer = new ResizeObserver(handleResize);
     observer.observe(mainChartRef.current);
-
-    setChartVersion((v) => v + 1);
 
     return () => {
       observer.disconnect();
@@ -288,7 +284,7 @@ export function InstrumentChart({ instrumentId }: InstrumentChartProps) {
         });
       }
     };
-  }, [data, viewType, indicators.sma20, indicators.sma50, chartVersion]);
+  }, [data, viewType, indicators.sma20, indicators.sma50, resolvedTheme]);
 
   return (
     <Card>

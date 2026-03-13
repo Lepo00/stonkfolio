@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from apps.market_data.indicators import calculate_sma, calculate_rsi
+from apps.market_data.indicators import calculate_rsi, calculate_sma
 
 
 class TestCalculateSMA:
