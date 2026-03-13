@@ -1,0 +1,11 @@
+django>=5.0,<6.0
+djangorestframework>=3.15,<4.0
+djangorestframework-simplejwt>=5.3,<6.0
+django-filter>=24.0
+django-cors-headers>=4.3,<5.0
+psycopg[binary]>=3.1,<4.0
+yfinance>=0.2,<1.0
+degiro-connector>=2.0,<3.0
+python-decouple>=3.8,<4.0
+pytest
+pytest-django
