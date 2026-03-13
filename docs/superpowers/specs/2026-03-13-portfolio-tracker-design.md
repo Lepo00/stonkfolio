@@ -1,4 +1,4 @@
-# Portfolio Tracker — Design Spec
+# Stonkfolio — Design Spec
 
 ## Purpose
 
