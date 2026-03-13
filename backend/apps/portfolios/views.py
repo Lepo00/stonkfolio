@@ -61,9 +61,12 @@ class PortfolioSummaryView(APIView):
         total_cost = Decimal("0")
 
         for h in holdings:
-            price_result = service.get_current_price(h.instrument)
-            total_value += h.quantity * price_result.price
             total_cost += h.quantity * h.avg_buy_price
+            try:
+                price_result = service.get_current_price(h.instrument)
+                total_value += h.quantity * price_result.price
+            except Exception:
+                total_value += h.quantity * h.avg_buy_price  # fallback to cost basis
 
         return Response(
             {
@@ -115,7 +118,10 @@ class PortfolioPerformanceView(APIView):
         for inst_data in instrument_changes.values():
             instrument = inst_data["instrument"]
             events = inst_data["events"]
-            prices = service.get_historical_prices(instrument, start, end)
+            try:
+                prices = service.get_historical_prices(instrument, start, end)
+            except Exception:
+                continue
 
             qty = Decimal("0")
             event_idx = 0

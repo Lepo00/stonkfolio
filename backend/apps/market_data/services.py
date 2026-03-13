@@ -1,5 +1,6 @@
 from datetime import date, timedelta
 
+import pandas as pd
 from django.utils import timezone
 
 from apps.instruments.models import Instrument
@@ -35,7 +36,7 @@ class MarketDataService:
             raise ValueError(f"No ticker for instrument {instrument.isin}")
         return self.provider.get_historical_prices(instrument.ticker, start, end)
 
-    def get_ohlcv(self, instrument, period: str, interval: str):
+    def get_ohlcv(self, instrument, period: str, interval: str) -> pd.DataFrame:
         """Fetch OHLCV data for an instrument. Returns a pandas DataFrame."""
         if not instrument.ticker:
             raise ValueError(f"No ticker for instrument {instrument.isin}")

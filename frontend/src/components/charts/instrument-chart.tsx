@@ -165,19 +165,27 @@ export function InstrumentChart({ instrumentId }: InstrumentChartProps) {
     const observer = new ResizeObserver(handleResize);
     observer.observe(rsiChartRef.current);
 
-    if (mainChartApi.current) {
-      mainChartApi.current.subscribeCrosshairMove((param) => {
-        if (param.time && rsiChartApi.current && rsiSeriesRef.current) {
-          rsiChartApi.current.setCrosshairPosition(
-            NaN,
-            param.time,
-            rsiSeriesRef.current
-          );
+    const mainChart = mainChartApi.current;
+    const crosshairHandler = mainChart
+      ? (param: { time?: unknown }) => {
+          if (param.time && rsiChartApi.current && rsiSeriesRef.current) {
+            rsiChartApi.current.setCrosshairPosition(
+              NaN,
+              param.time as Time,
+              rsiSeriesRef.current
+            );
+          }
         }
-      });
+      : null;
+
+    if (mainChart && crosshairHandler) {
+      mainChart.subscribeCrosshairMove(crosshairHandler);
     }
 
     return () => {
+      if (mainChart && crosshairHandler) {
+        mainChart.unsubscribeCrosshairMove(crosshairHandler);
+      }
       observer.disconnect();
       chart.remove();
       rsiChartApi.current = null;
@@ -311,8 +319,8 @@ export function InstrumentChart({ instrumentId }: InstrumentChartProps) {
           </div>
         ) : (
           <>
-            <div ref={mainChartRef} />
-            {indicators.rsi && <div ref={rsiChartRef} />}
+            <div ref={mainChartRef} aria-label="Price chart" role="img" />
+            {indicators.rsi && <div ref={rsiChartRef} aria-label="RSI indicator chart" role="img" />}
           </>
         )}
       </CardContent>

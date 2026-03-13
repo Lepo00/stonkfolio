@@ -10,5 +10,5 @@ export async function getInstrumentAnalysis(id: number) {
 }
 
 export async function getInstrumentChart(id: number, period: string = "6M") {
-  return apiClient<ChartData>(`/instruments/${id}/chart/?period=${period}`);
+  return apiClient<ChartData>(`/instruments/${id}/chart/?period=${encodeURIComponent(period)}`);
 }

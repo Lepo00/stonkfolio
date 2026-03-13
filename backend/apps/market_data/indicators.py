@@ -23,7 +23,9 @@ def calculate_rsi(closes: pd.Series, window: int = 14, *, intraday: bool = False
 
     rs = avg_gain / avg_loss
     rsi = 100 - (100 / (1 + rs))
-    rsi = rsi.dropna()
+    rsi = rsi.replace([float("inf"), float("-inf")], float("nan"))
+    rsi = rsi.fillna(50.0)
+    rsi = rsi.iloc[window:]  # drop the initial window where rolling mean is NaN
 
     return [
         {"time": _format_time(idx, intraday), "value": round(float(val), 2)}

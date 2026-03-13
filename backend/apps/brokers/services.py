@@ -77,6 +77,8 @@ class ImportService:
                 if total_qty > 0:
                     avg_cost = total_cost / total_qty
                     total_cost -= tx.quantity * avg_cost
+                else:
+                    total_cost = Decimal("0")
                 total_qty -= tx.quantity
 
         if total_qty > 0:

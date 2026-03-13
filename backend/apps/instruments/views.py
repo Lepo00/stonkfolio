@@ -228,6 +228,8 @@ class InstrumentChartView(APIView):
             logger.exception("Failed to fetch chart data for instrument %s", pk)
             return Response({"error": "Chart data temporarily unavailable"}, status=status.HTTP_502_BAD_GATEWAY)
 
+        df = df.dropna(subset=["Open", "High", "Low", "Close", "Volume"])
+
         is_intraday = yf_interval in ("5m", "15m")
         ohlc = []
         for idx, row in df.iterrows():

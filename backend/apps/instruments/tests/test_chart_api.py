@@ -106,3 +106,50 @@ class TestInstrumentChartAPI:
         resp = self.client.get(f"/api/instruments/{self.inst.id}/chart/?period=1D")
         assert resp.status_code == status.HTTP_200_OK
         assert isinstance(resp.data["ohlc"][0]["time"], int)
+
+    def test_chart_unauthenticated(self):
+        """Unauthenticated requests should be rejected."""
+        client = APIClient()  # no auth
+        resp = client.get(f"/api/instruments/{self.inst.id}/chart/")
+        assert resp.status_code == status.HTTP_401_UNAUTHORIZED
+
+    @patch("apps.instruments.views.MarketDataService")
+    def test_chart_service_failure_returns_502(self, MockService):
+        """When MarketDataService raises, return 502."""
+        MockService.return_value.get_ohlcv.side_effect = Exception("yfinance timeout")
+        resp = self.client.get(f"/api/instruments/{self.inst.id}/chart/")
+        assert resp.status_code == status.HTTP_502_BAD_GATEWAY
+
+
+@pytest.mark.django_db
+class TestInstrumentAnalysisAPI:
+    def setup_method(self):
+        self.user = User.objects.create_user(username="analyst", password="pass12345")
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        self.inst = Instrument.objects.create(
+            isin="US0378331005",
+            ticker="AAPL",
+            name="Apple Inc",
+            currency="USD",
+            asset_type="STOCK",
+        )
+
+    def test_analysis_unauthenticated(self):
+        client = APIClient()
+        resp = client.get(f"/api/instruments/{self.inst.id}/analysis/")
+        assert resp.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_analysis_not_found(self):
+        resp = self.client.get("/api/instruments/99999/analysis/")
+        assert resp.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_analysis_no_ticker(self):
+        inst = Instrument.objects.create(
+            isin="XX1111111111",
+            name="No Ticker Instrument",
+            currency="EUR",
+            asset_type="OTHER",
+        )
+        resp = self.client.get(f"/api/instruments/{inst.id}/analysis/")
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST

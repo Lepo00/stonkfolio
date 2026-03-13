@@ -28,12 +28,44 @@ export async function apiClient<T>(
     ...(body ? { body: isFormData ? body : JSON.stringify(body) } : {}),
   });
 
-  if (res.status === 401) {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("refresh_token");
-      window.location.href = "/login";
+  if (res.status === 401 && typeof window !== "undefined") {
+    const refreshToken = localStorage.getItem("refresh_token");
+    if (refreshToken && !path.includes("/auth/login") && !path.includes("/auth/token/refresh")) {
+      try {
+        const refreshRes = await fetch(`${API_BASE}/auth/token/refresh/`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh: refreshToken }),
+        });
+        if (refreshRes.ok) {
+          const data = await refreshRes.json();
+          localStorage.setItem("access_token", data.access);
+          if (data.refresh) {
+            localStorage.setItem("refresh_token", data.refresh);
+          }
+          // Retry the original request with the new token
+          const retryHeaders = {
+            ...(isFormData ? {} : { "Content-Type": "application/json" }),
+            Authorization: `Bearer ${data.access}`,
+            ...headers,
+          };
+          const retryRes = await fetch(`${API_BASE}${path}`, {
+            method,
+            headers: retryHeaders,
+            ...(body ? { body: isFormData ? (body as FormData) : JSON.stringify(body) } : {}),
+          });
+          if (retryRes.ok) {
+            if (retryRes.status === 204) return undefined as T;
+            return retryRes.json();
+          }
+        }
+      } catch {
+        // Refresh failed, fall through to logout
+      }
     }
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    window.location.href = "/login";
     throw new Error("Session expired");
   }
 

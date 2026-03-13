@@ -1,6 +1,7 @@
 from datetime import date
 from decimal import Decimal
 
+import pandas as pd
 import yfinance as yf
 
 from .base import PricePoint, PriceProvider, PriceResult
@@ -26,7 +27,7 @@ class YFinancePriceProvider(PriceProvider):
         df = t.history(start=str(start), end=str(end))
         return [PricePoint(date=row.Index.date(), price=Decimal(str(row.Close))) for row in df.itertuples()]
 
-    def get_ohlcv(self, ticker: str, period: str, interval: str):
+    def get_ohlcv(self, ticker: str, period: str, interval: str) -> pd.DataFrame:
         """Fetch OHLC+Volume data from yfinance. Returns a pandas DataFrame."""
         t = yf.Ticker(ticker)
         df = t.history(period=period, interval=interval, timeout=10)

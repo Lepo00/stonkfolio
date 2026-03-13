@@ -2,6 +2,7 @@ from datetime import date
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
+import pandas as pd
 import pytest
 
 from apps.instruments.models import Instrument
@@ -18,6 +19,13 @@ class TestMarketDataService:
             name="Test",
             currency="EUR",
             asset_type="ETF",
+        )
+        self.inst = self.instrument
+        self.inst_no_ticker = Instrument.objects.create(
+            isin="XX0000000000",
+            name="No Ticker",
+            currency="EUR",
+            asset_type="OTHER",
         )
 
     @patch("apps.market_data.providers.yfinance_provider.yf")
@@ -58,3 +66,19 @@ class TestMarketDataService:
 
         assert len(prices) == 3
         assert prices[0].price == Decimal("74.0")
+
+    def test_get_ohlcv_delegates_to_provider(self):
+        mock_provider = MagicMock()
+        expected_df = pd.DataFrame({"Close": [100.0]})
+        mock_provider.get_ohlcv.return_value = expected_df
+
+        service = MarketDataService(provider=mock_provider)
+        result = service.get_ohlcv(self.inst, "6mo", "1d")
+
+        mock_provider.get_ohlcv.assert_called_once_with("IWDA.AS", "6mo", "1d")
+        assert result is expected_df
+
+    def test_get_ohlcv_no_ticker_raises(self):
+        service = MarketDataService()
+        with pytest.raises(ValueError, match="No ticker"):
+            service.get_ohlcv(self.inst_no_ticker, "6mo", "1d")

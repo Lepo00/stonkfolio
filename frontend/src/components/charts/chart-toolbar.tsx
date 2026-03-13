@@ -40,6 +40,7 @@ export function ChartToolbar({
             variant={period === p ? "default" : "outline"}
             size="sm"
             onClick={() => onPeriodChange(p)}
+            aria-pressed={period === p}
           >
             {p}
           </Button>
@@ -54,6 +55,7 @@ export function ChartToolbar({
             variant={viewType === v ? "default" : "outline"}
             size="sm"
             onClick={() => onViewTypeChange(v)}
+            aria-pressed={viewType === v}
           >
             {v}
           </Button>
