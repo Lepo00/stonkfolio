@@ -5,7 +5,9 @@ django-filter>=24.0
 django-cors-headers>=4.3,<5.0
 psycopg[binary]>=3.1,<4.0
 yfinance>=0.2,<1.0
-degiro-connector>=2.0,<3.0
+# degiro-connector>=2.0,<3.0  # TODO: enable when API import is implemented
 python-decouple>=3.8,<4.0
 pytest
 pytest-django
+ruff>=0.8
+gunicorn>=22.0

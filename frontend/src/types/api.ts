@@ -82,3 +82,31 @@ export interface ImportResult {
   skipped: number;
   warnings: string[];
 }
+
+export interface InstrumentDetail extends Instrument {
+  current_price: string | null;
+  price_currency: string | null;
+  news: NewsItem[];
+}
+
+export interface NewsItem {
+  title: string;
+  publisher: string;
+  link: string;
+  published: string;
+  thumbnail: string;
+}
+
+export interface StockAnalysis {
+  recommendation: "BUY" | "HOLD" | "SELL";
+  confidence: "low" | "medium" | "high";
+  reasoning: string;
+  signals: { signal: string; sentiment: "bullish" | "bearish" }[];
+  metrics: {
+    current_price: string;
+    sma_20: string;
+    sma_50: string;
+    weekly_change_pct: string;
+    monthly_change_pct: string;
+  };
+}

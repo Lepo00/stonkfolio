@@ -1,0 +1,4 @@
+Date,Time,Asset Name,ISIN,Type,Shares,Price per share,Total,Fee,Tax,Currency,Note
+2025-01-13,09:15,iShares Core MSCI World,IE00B4L5Y983,Buy,10,75.50,755.00,1.00,0,EUR,order123
+2025-01-14,10:30,ASML Holding,NL0010273215,Buy,2,850.00,1700.00,1.00,0,EUR,order124
+2025-01-15,14:00,iShares Core MSCI World,IE00B4L5Y983,Sell,5,76.00,380.00,1.00,0,EUR,order125

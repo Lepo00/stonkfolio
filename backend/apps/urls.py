@@ -1,4 +1,4 @@
-from django.urls import path, include
+from django.urls import include, path
 
 urlpatterns = [
     path("auth/", include("apps.users.urls")),
@@ -6,4 +6,5 @@ urlpatterns = [
     path("", include("apps.portfolios.urls")),
     path("", include("apps.brokers.urls")),
     path("", include("apps.market_data.urls")),
+    path("", include("apps.instruments.urls")),
 ]

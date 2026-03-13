@@ -1,0 +1,4 @@
+Transaction ID,Timestamp,Transaction Type,Asset,ISIN,Amount,Price,Fee,Currency
+BP001,2025-01-13T09:15:00,buy,iShares Core MSCI World,IE00B4L5Y983,10,75.50,0.50,EUR
+BP002,2025-01-14T10:30:00,buy,ASML Holding,NL0010273215,2,850.00,0.50,EUR
+BP003,2025-01-15T14:00:00,sell,iShares Core MSCI World,IE00B4L5Y983,5,76.00,0.50,EUR
