@@ -110,3 +110,28 @@ export interface StockAnalysis {
     monthly_change_pct: string;
   };
 }
+
+export interface OHLCPoint {
+  time: string | number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+export interface IndicatorPoint {
+  time: string | number;
+  value: number;
+}
+
+export interface ChartData {
+  ticker: string;
+  currency: string;
+  ohlc: OHLCPoint[];
+  indicators: {
+    sma_20: IndicatorPoint[];
+    sma_50: IndicatorPoint[];
+    rsi_14: IndicatorPoint[];
+  };
+}
