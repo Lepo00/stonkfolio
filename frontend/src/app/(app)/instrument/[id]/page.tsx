@@ -6,6 +6,7 @@ import { getInstrumentDetail, getInstrumentAnalysis } from "@/lib/api/instrument
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { InstrumentChart } from "@/components/charts/instrument-chart";
 
 const recommendationColor: Record<string, string> = {
   BUY: "bg-green-600 hover:bg-green-600",
@@ -132,6 +133,9 @@ export default function InstrumentDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Interactive Chart */}
+      {instrument.ticker && <InstrumentChart instrumentId={id} />}
 
       {/* AI Analysis */}
       <Card>
