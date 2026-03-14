@@ -1,6 +1,6 @@
 # Stonkfolio
 
-A self-hosted portfolio tracker that imports transactions from multiple brokers and provides performance analytics, allocation breakdowns, and AI-powered stock recommendations.
+A self-hosted portfolio tracker that imports transactions from multiple brokers and provides performance analytics, allocation breakdowns, interactive charts, and AI-powered stock recommendations.
 
 ## Features
 
@@ -8,6 +8,7 @@ A self-hosted portfolio tracker that imports transactions from multiple brokers 
 - **Holdings dashboard** — Real-time portfolio value, cost basis, and gain/loss overview
 - **Performance charts** — Historical portfolio value with configurable time periods (1W to ALL)
 - **Allocation breakdown** — Pie charts grouped by sector, country, or asset type
+- **Interactive instrument charts** — Candlestick/line charts with volume overlay, SMA 20/50 indicators, and RSI 14 (powered by TradingView Lightweight Charts)
 - **Stock detail** — Per-instrument view with current price, latest news, and technical analysis
 - **AI recommendations** — Buy/Hold/Sell signals based on SMA crossovers and momentum indicators
 - **Multi-user** — JWT authentication with isolated portfolios per user
@@ -19,11 +20,12 @@ A self-hosted portfolio tracker that imports transactions from multiple brokers 
 | Layer | Technology |
 |-------|-----------|
 | Backend | Django 5, Django REST Framework, SimpleJWT |
-| Frontend | Next.js 14 (App Router), TypeScript, Tailwind CSS, shadcn/ui |
-| Charts | Recharts |
-| Server state | TanStack Query (React Query) |
+| Frontend | Next.js 16 (App Router), TypeScript, Tailwind CSS v4, shadcn/ui |
+| Portfolio charts | Recharts |
+| Instrument charts | TradingView Lightweight Charts v4 |
+| Server state | TanStack Query v5 (React Query) |
 | Market data | yfinance |
-| Database | PostgreSQL |
+| Database | PostgreSQL 16 |
 | Infrastructure | Docker Compose |
 
 ## Quick Start
@@ -63,6 +65,16 @@ docker compose exec backend python manage.py migrate
 
 Navigate to [http://localhost:3000](http://localhost:3000), register an account, and start importing transactions.
 
+### Production Deployment
+
+Use the production override for secure defaults (gunicorn, localhost-only ports, DEBUG off):
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build
+```
+
+Make sure to set `DJANGO_SECRET_KEY`, `DJANGO_ALLOWED_HOSTS`, and `CORS_ALLOWED_ORIGINS` in your `.env`.
+
 ## Local Development (without Docker)
 
 ### Backend
@@ -89,7 +101,7 @@ npm run dev
 
 ```bash
 cd backend
-python -m pytest -v                              # all tests
+python -m pytest -v                              # all tests (91 tests)
 python -m pytest apps/brokers/tests/ -v          # specific app
 python -m pytest path/test.py::Class::method -v  # single test
 ```
@@ -108,12 +120,12 @@ npm test
 ```bash
 # Backend
 cd backend
-ruff check .
-ruff format --check .
+python -m ruff check .
+python -m ruff format --check .
 
 # Frontend
 cd frontend
-npm run lint
+npx eslint src/
 ```
 
 ## Importing Transactions
@@ -142,15 +154,18 @@ Duplicate transactions are automatically skipped based on a hash of the transact
 | `POSTGRES_DB` | Database name | `stonkfolio` |
 | `POSTGRES_USER` | Database user | `postgres` |
 | `POSTGRES_PASSWORD` | Database password | `changeme` |
-| `DJANGO_SECRET_KEY` | Django secret key | `changeme` |
-| `DJANGO_DEBUG` | Debug mode | `True` |
+| `DJANGO_SECRET_KEY` | Django secret key | *(required)* |
+| `DJANGO_DEBUG` | Debug mode | `False` |
+| `DJANGO_ALLOWED_HOSTS` | Comma-separated allowed hosts (prod) | `localhost` |
+| `CORS_ALLOWED_ORIGINS` | Comma-separated CORS origins (prod) | `http://localhost:3000` |
 
 ## API Endpoints
 
 | Endpoint | Description |
 |----------|------------|
-| `POST /api/auth/register/` | Register new user |
+| `POST /api/auth/register/` | Register new user (rate-limited: 5/hour) |
 | `POST /api/auth/login/` | Obtain JWT tokens |
+| `POST /api/auth/token/refresh/` | Refresh access token |
 | `GET /api/portfolios/` | List user portfolios |
 | `GET /api/portfolios/:id/holdings/` | Portfolio holdings |
 | `GET /api/portfolios/:id/summary/` | Portfolio value summary |
@@ -160,6 +175,7 @@ Duplicate transactions are automatically skipped based on a hash of the transact
 | `POST /api/portfolios/:id/import/csv/confirm/` | Confirm import |
 | `GET /api/instruments/:id/` | Instrument detail + news |
 | `GET /api/instruments/:id/analysis/` | AI recommendation |
+| `GET /api/instruments/:id/chart/?period=6M` | OHLCV chart data + indicators |
 
 ## License
 
