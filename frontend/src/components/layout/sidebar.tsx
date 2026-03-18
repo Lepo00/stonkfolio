@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -13,6 +14,7 @@ import {
   Sun,
   Moon,
   Monitor,
+  Plus,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";
@@ -28,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { CreatePortfolioDialog } from "@/components/portfolios/create-portfolio-dialog";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -43,6 +46,7 @@ export function Sidebar() {
   const { user, logout } = useAuth();
   const { portfolios, selected, setSelected } = usePortfolio();
   const { theme, setTheme, resolvedTheme } = useTheme();
+  const [createOpen, setCreateOpen] = useState(false);
 
   const cycleTheme = () => {
     const next = theme === "light" ? "dark" : theme === "dark" ? "system" : "light";
@@ -72,9 +76,20 @@ export function Sidebar() {
 
       {/* Portfolio selector */}
       <div className="px-4 py-3">
-        <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
-          Portfolio
-        </label>
+        <div className="mb-1.5 flex items-center justify-between">
+          <label className="text-xs font-medium text-muted-foreground">
+            Portfolio
+          </label>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={() => setCreateOpen(true)}
+            className="text-muted-foreground hover:text-foreground"
+            aria-label="Create portfolio"
+          >
+            <Plus className="size-3.5" />
+          </Button>
+        </div>
         <Select
           value={selected?.id?.toString() ?? ""}
           onValueChange={(val) => {
@@ -142,6 +157,8 @@ export function Sidebar() {
           <span className="sr-only">Logout</span>
         </Button>
       </div>
+
+      <CreatePortfolioDialog open={createOpen} onOpenChange={setCreateOpen} />
     </aside>
   );
 }
