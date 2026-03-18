@@ -126,4 +126,10 @@
     @apply font-sans;
     font-size: 18px;
   }
+  /* Ensure Recharts tooltips and SVG text inherit the app font */
+  .recharts-tooltip-wrapper,
+  .recharts-default-tooltip,
+  .recharts-text {
+    font-family: var(--font-dm-sans), var(--font-sans), sans-serif !important;
+  }
 }

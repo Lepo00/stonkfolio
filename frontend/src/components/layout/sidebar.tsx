@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
+  Briefcase,
   TrendingUp,
   PieChart,
   ArrowLeftRight,
@@ -36,6 +37,7 @@ import { CreatePortfolioDialog } from "@/components/portfolios/create-portfolio-
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/holdings", label: "Holdings", icon: Briefcase },
   { href: "/performance", label: "Performance", icon: TrendingUp },
   { href: "/allocation", label: "Allocation", icon: PieChart },
   { href: "/transactions", label: "Transactions", icon: ArrowLeftRight },
