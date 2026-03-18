@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { PortfolioProvider } from "@/lib/portfolio-context";
@@ -9,6 +9,7 @@ import { Sidebar } from "./sidebar";
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -31,7 +32,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <PortfolioProvider>
       <div className="flex h-screen bg-background text-foreground">
-        <Sidebar />
+        <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
         <main className="flex-1 overflow-auto">{children}</main>
       </div>
     </PortfolioProvider>

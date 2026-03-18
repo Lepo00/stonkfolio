@@ -15,6 +15,8 @@ import {
   Moon,
   Monitor,
   Plus,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";
@@ -41,7 +43,12 @@ const navItems = [
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  collapsed: boolean;
+  onToggle: () => void;
+}
+
+export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const { portfolios, selected, setSelected } = usePortfolio();
@@ -57,58 +64,86 @@ export function Sidebar() {
   const themeLabel = theme === "system" ? "System theme" : theme === "dark" ? "Dark theme" : "Light theme";
 
   return (
-    <aside className="flex h-screen w-64 flex-col border-r bg-background">
-      {/* App name */}
-      <div className="flex h-14 items-center justify-between px-4">
-        <h1 className="text-lg font-semibold tracking-tight">Stonkfolio</h1>
+    <aside
+      className={cn(
+        "flex h-screen flex-col border-r bg-background transition-all duration-200",
+        collapsed ? "w-16" : "w-64"
+      )}
+    >
+      {/* App name + collapse toggle */}
+      <div className="flex h-14 items-center justify-between px-3">
+        {!collapsed && (
+          <h1 className="text-lg font-semibold tracking-tight pl-1">Stonkfolio</h1>
+        )}
         <Button
           variant="ghost"
           size="icon"
-          onClick={cycleTheme}
-          className="size-8 text-muted-foreground hover:text-foreground"
-          aria-label={themeLabel}
+          onClick={onToggle}
+          className={cn(
+            "size-8 text-muted-foreground hover:text-foreground",
+            collapsed && "mx-auto"
+          )}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
-          <ThemeIcon className="size-4" />
+          {collapsed ? (
+            <PanelLeftOpen className="size-4" />
+          ) : (
+            <PanelLeftClose className="size-4" />
+          )}
         </Button>
       </div>
 
       <Separator />
 
       {/* Portfolio selector */}
-      <div className="px-4 py-3">
-        <div className="mb-1.5 flex items-center justify-between">
-          <label className="text-xs font-medium text-muted-foreground">
-            Portfolio
-          </label>
+      {!collapsed ? (
+        <div className="px-4 py-3">
+          <div className="mb-1.5 flex items-center justify-between">
+            <label className="text-xs font-medium text-muted-foreground">
+              Portfolio
+            </label>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={() => setCreateOpen(true)}
+              className="text-muted-foreground hover:text-foreground"
+              aria-label="Create portfolio"
+            >
+              <Plus className="size-3.5" />
+            </Button>
+          </div>
+          <Select
+            value={selected?.id?.toString() ?? ""}
+            onValueChange={(val) => {
+              const p = portfolios.find((p) => p.id.toString() === val);
+              if (p) setSelected(p);
+            }}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select portfolio" />
+            </SelectTrigger>
+            <SelectContent>
+              {portfolios.map((p) => (
+                <SelectItem key={p.id} value={p.id.toString()}>
+                  {p.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center gap-1 py-3">
           <Button
             variant="ghost"
-            size="icon-xs"
+            size="icon"
             onClick={() => setCreateOpen(true)}
-            className="text-muted-foreground hover:text-foreground"
+            className="size-8 text-muted-foreground hover:text-foreground"
             aria-label="Create portfolio"
           >
-            <Plus className="size-3.5" />
+            <Plus className="size-4" />
           </Button>
         </div>
-        <Select
-          value={selected?.id?.toString() ?? ""}
-          onValueChange={(val) => {
-            const p = portfolios.find((p) => p.id.toString() === val);
-            if (p) setSelected(p);
-          }}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Select portfolio" />
-          </SelectTrigger>
-          <SelectContent>
-            {portfolios.map((p) => (
-              <SelectItem key={p.id} value={p.id.toString()}>
-                {p.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      )}
 
       <Separator />
 
@@ -121,15 +156,17 @@ export function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              title={collapsed ? item.label : undefined}
               className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                "flex items-center rounded-md py-2 text-sm font-medium transition-colors",
+                collapsed ? "justify-center px-2" : "gap-3 px-3",
                 isActive
                   ? "bg-primary/10 text-primary font-semibold border-l-2 border-primary"
                   : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
               )}
             >
-              <Icon className="size-4" />
-              {item.label}
+              <Icon className="size-4 shrink-0" />
+              {!collapsed && item.label}
             </Link>
           );
         })}
@@ -137,25 +174,67 @@ export function Sidebar() {
 
       <Separator />
 
-      {/* User menu */}
-      <div className="flex items-center gap-3 px-4 py-3">
-        <Avatar size="sm">
-          <AvatarFallback>
-            {user?.username?.charAt(0).toUpperCase() ?? "?"}
-          </AvatarFallback>
-        </Avatar>
-        <div className="flex-1 truncate text-sm font-medium">
-          {user?.username}
-        </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={logout}
-          className="size-8 text-muted-foreground hover:text-foreground"
-        >
-          <LogOut className="size-4" />
-          <span className="sr-only">Logout</span>
-        </Button>
+      {/* Bottom controls */}
+      <div className={cn(
+        "flex items-center gap-3 px-3 py-3",
+        collapsed ? "flex-col" : "px-4"
+      )}>
+        {!collapsed ? (
+          <>
+            <Avatar size="sm">
+              <AvatarFallback>
+                {user?.username?.charAt(0).toUpperCase() ?? "?"}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 truncate text-sm font-medium">
+              {user?.username}
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={cycleTheme}
+              className="size-8 text-muted-foreground hover:text-foreground"
+              aria-label={themeLabel}
+            >
+              <ThemeIcon className="size-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={logout}
+              className="size-8 text-muted-foreground hover:text-foreground"
+            >
+              <LogOut className="size-4" />
+              <span className="sr-only">Logout</span>
+            </Button>
+          </>
+        ) : (
+          <>
+            <Avatar size="sm">
+              <AvatarFallback>
+                {user?.username?.charAt(0).toUpperCase() ?? "?"}
+              </AvatarFallback>
+            </Avatar>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={cycleTheme}
+              className="size-8 text-muted-foreground hover:text-foreground"
+              aria-label={themeLabel}
+            >
+              <ThemeIcon className="size-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={logout}
+              className="size-8 text-muted-foreground hover:text-foreground"
+              aria-label="Logout"
+            >
+              <LogOut className="size-4" />
+            </Button>
+          </>
+        )}
       </div>
 
       <CreatePortfolioDialog open={createOpen} onOpenChange={setCreateOpen} />
