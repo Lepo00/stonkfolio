@@ -1,12 +1,6 @@
 import type { Metadata } from "next";
-import { DM_Sans } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/lib/providers";
-
-const dmSans = DM_Sans({
-  variable: "--font-dm-sans",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Stonkfolio",
@@ -20,7 +14,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${dmSans.variable} antialiased`}>
+      <body className="antialiased">
         <Providers>{children}</Providers>
       </body>
     </html>
