@@ -9,8 +9,10 @@ from rest_framework.views import APIView
 
 from apps.market_data.services import MarketDataService
 
+from .advice import AdviceEngine
+from .advice.context import DISCLAIMER
 from .models import Holding, Portfolio, Transaction, TransactionType
-from .serializers import HoldingSerializer, PortfolioSerializer, TransactionSerializer
+from .serializers import AdviceResponseSerializer, HoldingSerializer, PortfolioSerializer, TransactionSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -197,117 +199,21 @@ class PortfolioAllocationView(APIView):
 
 
 class PortfolioAdviceView(APIView):
-    """AI-powered portfolio-level advice based on holdings analysis."""
+    """Structured portfolio advice powered by the rule-based advice engine."""
 
     def get(self, request, portfolio_id):
         portfolio = get_object_or_404(Portfolio, id=portfolio_id, user=request.user)
-        holdings = portfolio.holdings.select_related("instrument").all()
 
-        if not holdings:
-            return Response({"advice": "Start by importing your transactions to see portfolio advice."})
-
-        service = MarketDataService()
-        holding_insights = []
-        total_cost = Decimal("0")
-        total_value = Decimal("0")
-        sector_weights = {}
-
-        for h in holdings:
-            cost = h.quantity * h.avg_buy_price
-            total_cost += cost
-
-            try:
-                price_result = service.get_current_price(h.instrument)
-                value = h.quantity * price_result.price
-                gain_pct = ((value - cost) / cost * 100) if cost else Decimal("0")
-            except Exception:
-                value = cost
-                gain_pct = Decimal("0")
-
-            total_value += value
-
-            sector = h.instrument.sector or "Unknown"
-            sector_weights[sector] = sector_weights.get(sector, Decimal("0")) + value
-
-            holding_insights.append(
+        if not portfolio.holdings.exists():
+            return Response(
                 {
-                    "name": h.instrument.name,
-                    "ticker": h.instrument.ticker,
-                    "weight_pct": Decimal("0"),  # filled after loop
-                    "gain_pct": gain_pct,
-                    "sector": sector,
+                    "items": [],
+                    "has_pending_analysis": False,
+                    "disclaimer": DISCLAIMER,
                 }
             )
 
-        # Calculate weights
-        for hi in holding_insights:
-            name = hi["name"]
-            h = next(h for h in holdings if h.instrument.name == name)
-            try:
-                price_result = service.get_current_price(h.instrument)
-                val = h.quantity * price_result.price
-            except Exception:
-                val = h.quantity * h.avg_buy_price
-            hi["weight_pct"] = (val / total_value * 100) if total_value else Decimal("0")
+        engine = AdviceEngine(portfolio)
+        response = engine.evaluate()
 
-        # Generate advice
-        tips = []
-
-        # 1. Concentration risk
-        for hi in holding_insights:
-            if hi["weight_pct"] > 30:
-                tips.append(
-                    f"**{hi['name']}** represents {hi['weight_pct']:.0f}% of your portfolio. "
-                    f"Consider diversifying to reduce concentration risk."
-                )
-
-        # 2. Sector concentration
-        if total_value:
-            for sector, val in sector_weights.items():
-                pct = val / total_value * 100
-                if pct > 50 and sector != "Unknown":
-                    tips.append(
-                        f"Over {pct:.0f}% of your portfolio is in the **{sector}** sector. "
-                        f"Adding exposure to other sectors could reduce risk."
-                    )
-
-        # 3. Underperformers
-        losers = [hi for hi in holding_insights if hi["gain_pct"] < -5]
-        if losers:
-            names = ", ".join(f"**{loser['name']}**" for loser in losers)
-            tips.append(
-                f"{names} {'is' if len(losers) == 1 else 'are'} down more than 5%. "
-                f"Review whether the original investment thesis still holds."
-            )
-
-        # 4. Top performers
-        winners = [hi for hi in holding_insights if hi["gain_pct"] > 15]
-        if winners:
-            names = ", ".join(f"**{w['name']}**" for w in winners)
-            tips.append(
-                f"{names} {'has' if len(winners) == 1 else 'have'} gained over 15%. "
-                f"Consider whether to take some profits or let it run."
-            )
-
-        # 5. Number of holdings
-        if len(holding_insights) < 4:
-            tips.append(
-                f"Your portfolio has only {len(holding_insights)} positions. "
-                f"Consider adding more holdings for better diversification."
-            )
-
-        # 6. Overall performance
-        if total_cost:
-            overall_return = (total_value - total_cost) / total_cost * 100
-            if overall_return > 0:
-                tips.append(f"Your portfolio is up **{overall_return:.1f}%** overall. Keep it up!")
-            else:
-                tips.append(
-                    f"Your portfolio is down **{abs(overall_return):.1f}%** overall. "
-                    f"Stay focused on your long-term strategy."
-                )
-
-        if not tips:
-            tips.append("Your portfolio looks well-balanced. No immediate action needed.")
-
-        return Response({"advice": tips})
+        return Response(AdviceResponseSerializer(response).data)
