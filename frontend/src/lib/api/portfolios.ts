@@ -35,3 +35,7 @@ export async function getAllocation(portfolioId: number, groupBy: string) {
 export async function getTransactions(portfolioId: number) {
   return apiClient<PaginatedResponse<Transaction>>(`/portfolios/${portfolioId}/transactions/`);
 }
+
+export async function getPortfolioAdvice(portfolioId: number) {
+  return apiClient<{ advice: string | string[] }>(`/portfolios/${portfolioId}/advice/`);
+}

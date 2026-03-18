@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Plus, TrendingUp, TrendingDown, BarChart3 } from "lucide-react";
+import { Plus, TrendingUp, TrendingDown, BarChart3, Sparkles } from "lucide-react";
 import {
   AreaChart,
   Area,
@@ -12,7 +12,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { usePortfolio } from "@/lib/portfolio-context";
-import { getSummary, getPerformance } from "@/lib/api/portfolios";
+import { getSummary, getPerformance, getPortfolioAdvice } from "@/lib/api/portfolios";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CreatePortfolioDialog } from "@/components/portfolios/create-portfolio-dialog";
@@ -65,6 +65,13 @@ export default function DashboardPage() {
     queryKey: ["performance", selected?.id, period],
     queryFn: () => getPerformance(selected!.id, period),
     enabled: !!selected,
+  });
+
+  const { data: adviceData, isLoading: adviceLoading } = useQuery({
+    queryKey: ["portfolio-advice", selected?.id],
+    queryFn: () => getPortfolioAdvice(selected!.id),
+    enabled: !!selected,
+    staleTime: 5 * 60 * 1000, // cache for 5 minutes
   });
 
   // --- No portfolio state ---
@@ -275,6 +282,39 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* AI Portfolio Advice */}
+      <Card className="shadow-sm mt-4">
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles className="size-4 text-primary" />
+            <p className={labelClasses}>Portfolio Insights</p>
+          </div>
+          {adviceLoading ? (
+            <div className="space-y-2">
+              <div className="animate-pulse bg-muted rounded h-4 w-full" />
+              <div className="animate-pulse bg-muted rounded h-4 w-3/4" />
+            </div>
+          ) : adviceData?.advice ? (
+            <ul className="space-y-2">
+              {(Array.isArray(adviceData.advice)
+                ? adviceData.advice
+                : [adviceData.advice]
+              ).map((tip, i) => (
+                <li
+                  key={i}
+                  className="text-sm text-muted-foreground leading-relaxed"
+                  dangerouslySetInnerHTML={{
+                    __html: tip.replace(/\*\*(.*?)\*\*/g, "<strong class='text-foreground'>$1</strong>"),
+                  }}
+                />
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">No advice available.</p>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
