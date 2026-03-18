@@ -1,10 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import { Plus } from "lucide-react";
 import { usePortfolio } from "@/lib/portfolio-context";
 import { getHoldings, getSummary } from "@/lib/api/portfolios";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -13,10 +16,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CreatePortfolioDialog } from "@/components/portfolios/create-portfolio-dialog";
 
 export default function DashboardPage() {
   const router = useRouter();
   const { selected } = usePortfolio();
+  const [createOpen, setCreateOpen] = useState(false);
 
   const { data: summary, isLoading: summaryLoading, error: summaryError } = useQuery({
     queryKey: ["summary", selected?.id],
@@ -35,8 +40,13 @@ export default function DashboardPage() {
       <div className="p-6">
         <h1 className="text-2xl font-bold">Dashboard</h1>
         <p className="text-muted-foreground mt-4">
-          Create a portfolio to get started
+          Create a portfolio to get started.
         </p>
+        <Button className="mt-4" onClick={() => setCreateOpen(true)}>
+          <Plus className="size-4" data-icon="inline-start" />
+          Create portfolio
+        </Button>
+        <CreatePortfolioDialog open={createOpen} onOpenChange={setCreateOpen} />
       </div>
     );
   }
