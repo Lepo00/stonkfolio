@@ -68,12 +68,15 @@ class PortfolioSummaryView(APIView):
             except Exception:
                 total_value += h.quantity * h.avg_buy_price  # fallback to cost basis
 
+        first_tx = portfolio.transactions.order_by("date").values_list("date", flat=True).first()
+
         return Response(
             {
                 "total_value": f"{total_value:.2f}",
                 "total_cost": f"{total_cost:.2f}",
                 "total_gain_loss": f"{total_value - total_cost:.2f}",
                 "total_return_pct": f"{((total_value - total_cost) / total_cost * 100):.2f}" if total_cost else "0.00",
+                "first_transaction_date": str(first_tx) if first_tx else None,
             }
         )
 

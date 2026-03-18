@@ -46,6 +46,7 @@ export interface PortfolioSummary {
   total_cost: string;
   total_gain_loss: string;
   total_return_pct: string;
+  first_transaction_date: string | null;
 }
 
 export interface PerformanceSeries {
