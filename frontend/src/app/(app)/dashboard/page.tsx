@@ -171,22 +171,22 @@ export default function DashboardPage() {
   const sinceLabel = formatSinceDate(summary?.first_transaction_date ?? null);
 
   return (
-    <div className="p-6 h-full flex flex-col justify-center overflow-hidden">
-      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4">
+    <div className="p-4 h-full flex flex-col justify-center overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-3">
         {/* --- Hero: Total Value (top-left) --- */}
         <Card className="shadow-sm">
-          <CardContent className="pt-6">
+          <CardContent className="pt-4 pb-3">
             <p className={labelClasses}>Total Value</p>
-            <p className="text-4xl font-bold mt-1">
+            <p className="text-3xl font-bold mt-0.5">
               &euro;{formatCurrency(totalValue)}
             </p>
-            <div className={`flex items-center gap-1 mt-2 ${colorClasses(isPositive)}`}>
+            <div className={`flex items-center gap-1 mt-1 ${colorClasses(isPositive)}`}>
               {isPositive ? (
-                <TrendingUp className="size-4 shrink-0" />
+                <TrendingUp className="size-3.5 shrink-0" />
               ) : (
-                <TrendingDown className="size-4 shrink-0" />
+                <TrendingDown className="size-3.5 shrink-0" />
               )}
-              <span className="text-sm font-medium">
+              <span className="text-xs font-medium">
                 {isPositive ? "+" : ""}
                 {returnPct.toFixed(2)}% all time
               </span>
@@ -196,27 +196,27 @@ export default function DashboardPage() {
 
         {/* --- Today (top-right) --- */}
         <Card className="shadow-sm">
-          <CardContent className="pt-6">
+          <CardContent className="pt-4 pb-3">
             <p className={labelClasses}>Today</p>
             {todayGL !== null ? (
               <>
-                <div className={`flex items-center gap-1.5 mt-1 ${colorClasses(todayPositive)}`}>
+                <div className={`flex items-center gap-1.5 mt-0.5 ${colorClasses(todayPositive)}`}>
                   {todayPositive ? (
-                    <TrendingUp className="size-5 shrink-0" />
+                    <TrendingUp className="size-4 shrink-0" />
                   ) : (
-                    <TrendingDown className="size-5 shrink-0" />
+                    <TrendingDown className="size-4 shrink-0" />
                   )}
-                  <p className="text-2xl font-bold">
+                  <p className="text-xl font-bold">
                     {todayPositive ? "+" : ""}&euro;{formatCurrency(Math.abs(todayGL))}
                   </p>
                 </div>
-                <p className={`text-sm font-medium mt-1 ${colorClasses(todayPositive)}`}>
+                <p className={`text-xs font-medium mt-0.5 ${colorClasses(todayPositive)}`}>
                   {todayPositive ? "+" : ""}
                   {todayPct!.toFixed(2)}%
                 </p>
               </>
             ) : (
-              <p className="text-2xl font-bold mt-1 text-muted-foreground">
+              <p className="text-xl font-bold mt-0.5 text-muted-foreground">
                 --
               </p>
             )}
@@ -225,16 +225,16 @@ export default function DashboardPage() {
 
         {/* --- Performance chart (bottom-left) --- */}
         <Card className="shadow-sm">
-          <CardContent className="pt-4 pb-3">
+          <CardContent className="pt-3 pb-2">
             {perfError ? (
-              <div className="flex flex-col items-center justify-center h-[280px] text-muted-foreground gap-2">
+              <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground gap-2">
                 <BarChart3 className="size-10 opacity-40" />
                 <p className="text-sm">Chart unavailable</p>
               </div>
             ) : perfLoading ? (
-              <div className="animate-pulse bg-muted rounded-xl h-[280px]" />
+              <div className="animate-pulse bg-muted rounded-xl h-[200px]" />
             ) : (
-              <ResponsiveContainer width="100%" height={280}>
+              <ResponsiveContainer width="100%" height={200}>
                 <AreaChart data={chartData}>
                   <defs>
                     <linearGradient id="valueGradient" x1="0" y1="0" x2="0" y2="1">
@@ -288,26 +288,26 @@ export default function DashboardPage() {
 
         {/* --- Overall Gain/Loss (bottom-right) --- */}
         <Card className="shadow-sm">
-          <CardContent className="pt-6 flex flex-col justify-between h-full">
+          <CardContent className="pt-4 pb-3 flex flex-col justify-between h-full">
             <div>
               <p className={labelClasses}>Overall Gain/Loss</p>
-              <div className={`flex items-center gap-1.5 mt-1 ${colorClasses(isPositive)}`}>
+              <div className={`flex items-center gap-1.5 mt-0.5 ${colorClasses(isPositive)}`}>
                 {isPositive ? (
-                  <TrendingUp className="size-5 shrink-0" />
+                  <TrendingUp className="size-4 shrink-0" />
                 ) : (
-                  <TrendingDown className="size-5 shrink-0" />
+                  <TrendingDown className="size-4 shrink-0" />
                 )}
-                <p className="text-2xl font-bold">
+                <p className="text-xl font-bold">
                   {isPositive ? "+" : ""}&euro;{formatCurrency(Math.abs(gainLoss))}
                 </p>
               </div>
-              <p className={`text-sm font-medium mt-1 ${colorClasses(isPositive)}`}>
+              <p className={`text-xs font-medium mt-0.5 ${colorClasses(isPositive)}`}>
                 {isPositive ? "+" : ""}
                 {returnPct.toFixed(2)}%
               </p>
             </div>
             {sinceLabel && (
-              <p className="text-xs text-muted-foreground mt-4">
+              <p className="text-xs text-muted-foreground mt-2">
                 {sinceLabel}
               </p>
             )}
@@ -316,9 +316,9 @@ export default function DashboardPage() {
       </div>
 
       {/* AI Portfolio Advice */}
-      <Card className="shadow-sm mt-4">
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-2 mb-3">
+      <Card className="shadow-sm mt-3 min-h-0 flex-shrink">
+        <CardContent className="pt-3 pb-3">
+          <div className="flex items-center gap-2 mb-2">
             <Sparkles className="size-4 text-primary" />
             <p className={labelClasses}>Portfolio Insights</p>
             {adviceData?.has_pending_analysis && (
@@ -336,7 +336,7 @@ export default function DashboardPage() {
             </div>
           ) : adviceData?.items.length ? (
             <>
-              <div className="max-h-[200px] overflow-y-auto space-y-2">
+              <div className="max-h-[150px] overflow-y-auto space-y-1.5">
                 {(adviceExpanded ? adviceData.items : adviceData.items.slice(0, 5)).map((item) => {
                   const Icon = CATEGORY_ICONS[item.category];
                   return (
