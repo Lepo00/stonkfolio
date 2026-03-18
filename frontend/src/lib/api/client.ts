@@ -30,9 +30,9 @@ export async function apiClient<T>(
 
   if (res.status === 401 && typeof window !== "undefined") {
     const refreshToken = localStorage.getItem("refresh_token");
-    if (refreshToken && !path.includes("/auth/login") && !path.includes("/auth/token/refresh")) {
+    if (refreshToken && !path.includes("/auth/login") && !path.includes("/auth/refresh")) {
       try {
-        const refreshRes = await fetch(`${API_BASE}/auth/token/refresh/`, {
+        const refreshRes = await fetch(`${API_BASE}/auth/refresh/`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ refresh: refreshToken }),
@@ -65,7 +65,9 @@ export async function apiClient<T>(
     }
     localStorage.removeItem("access_token");
     localStorage.removeItem("refresh_token");
-    window.location.href = "/login";
+    if (!window.location.pathname.startsWith("/login")) {
+      window.location.href = "/login";
+    }
     throw new Error("Session expired");
   }
 

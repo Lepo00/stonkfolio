@@ -43,20 +43,13 @@ const BROKERS = [
   { value: "bitpanda", label: "Bitpanda" },
 ];
 
-function getStoredValue(key: string, defaultValue: string): string {
-  if (typeof window === "undefined") return defaultValue;
-  const stored = localStorage.getItem(key);
-  return stored !== null ? stored : defaultValue;
-}
-
-function getStoredBool(key: string, defaultValue: boolean): boolean {
-  if (typeof window === "undefined") return defaultValue;
-  const stored = localStorage.getItem(key);
-  return stored !== null ? stored === "true" : defaultValue;
-}
-
 function useLocalStorage(key: string, defaultValue: string) {
-  const [value, setValue] = useState(() => getStoredValue(key, defaultValue));
+  const [value, setValue] = useState(defaultValue);
+
+  useEffect(() => {
+    const stored = localStorage.getItem(key);
+    if (stored !== null) setValue(stored);
+  }, [key]);
 
   const set = useCallback(
     (newValue: string) => {
@@ -70,7 +63,12 @@ function useLocalStorage(key: string, defaultValue: string) {
 }
 
 function useLocalStorageBool(key: string, defaultValue: boolean) {
-  const [value, setValue] = useState(() => getStoredBool(key, defaultValue));
+  const [value, setValue] = useState(defaultValue);
+
+  useEffect(() => {
+    const stored = localStorage.getItem(key);
+    if (stored !== null) setValue(stored === "true");
+  }, [key]);
 
   const set = useCallback(
     (newValue: boolean) => {

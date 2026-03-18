@@ -18,7 +18,7 @@ A self-hosted portfolio tracker that imports transactions from multiple brokers 
 ## Tech Stack
 
 | Layer | Technology |
-|-------|-----------|
+|-------|------------|
 | Backend | Django 5, Django REST Framework, SimpleJWT |
 | Frontend | Next.js 16 (App Router), TypeScript, Tailwind CSS v4, shadcn/ui |
 | Portfolio charts | Recharts |
@@ -51,6 +51,7 @@ docker compose up --build
 ```
 
 This starts:
+
 - **PostgreSQL** on port 5432
 - **Django backend** on [http://localhost:8000](http://localhost:8000)
 - **Next.js frontend** on [http://localhost:3000](http://localhost:3000)
