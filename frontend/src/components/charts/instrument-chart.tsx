@@ -6,9 +6,6 @@ import {
   createChart,
   ColorType,
   CrosshairMode,
-  type IChartApi,
-  type ISeriesApi,
-  type SeriesType,
   type CandlestickData,
   type LineData,
   type HistogramData,
@@ -27,6 +24,9 @@ interface InstrumentChartProps {
   instrumentId: number;
 }
 
+const CHART_HEIGHT = 520;
+const RSI_HEIGHT = 120;
+
 const LIGHT_THEME = {
   background: "#ffffff",
   textColor: "#333333",
@@ -44,9 +44,6 @@ const DARK_THEME = {
 export function InstrumentChart({ instrumentId }: InstrumentChartProps) {
   const mainChartRef = useRef<HTMLDivElement>(null);
   const rsiChartRef = useRef<HTMLDivElement>(null);
-  const mainChartApi = useRef<IChartApi | null>(null);
-  const rsiChartApi = useRef<IChartApi | null>(null);
-  const rsiSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
 
   const [period, setPeriod] = useState("6M");
   const [viewType, setViewType] = useState<ViewType>("Candlestick");
@@ -64,13 +61,13 @@ export function InstrumentChart({ instrumentId }: InstrumentChartProps) {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Create and manage main chart
+  // Single effect: create chart, populate data, handle resize
   useEffect(() => {
-    if (!mainChartRef.current) return;
+    if (!mainChartRef.current || !data) return;
 
     const chart = createChart(mainChartRef.current, {
       width: mainChartRef.current.clientWidth,
-      height: 400,
+      height: CHART_HEIGHT,
       layout: {
         background: { type: ColorType.Solid, color: colors.background },
         textColor: colors.textColor,
@@ -84,122 +81,7 @@ export function InstrumentChart({ instrumentId }: InstrumentChartProps) {
       timeScale: { borderColor: colors.borderColor },
     });
 
-    mainChartApi.current = chart;
-
-    const handleResize = () => {
-      if (mainChartRef.current) {
-        chart.applyOptions({ width: mainChartRef.current.clientWidth });
-      }
-    };
-    const observer = new ResizeObserver(handleResize);
-    observer.observe(mainChartRef.current);
-
-    return () => {
-      observer.disconnect();
-      chart.remove();
-      mainChartApi.current = null;
-    };
-  }, [colors]);
-
-  // Create RSI chart, populate data, and sync crosshair — all in one effect
-  useEffect(() => {
-    if (!rsiChartRef.current || !indicators.rsi || !data) return;
-
-    const chart = createChart(rsiChartRef.current, {
-      width: rsiChartRef.current.clientWidth,
-      height: 120,
-      layout: {
-        background: { type: ColorType.Solid, color: colors.background },
-        textColor: colors.textColor,
-      },
-      grid: {
-        vertLines: { color: colors.gridColor },
-        horzLines: { color: colors.gridColor },
-      },
-      crosshair: { mode: CrosshairMode.Normal },
-      rightPriceScale: { borderColor: colors.borderColor },
-      timeScale: { borderColor: colors.borderColor, visible: false },
-    });
-
-    rsiChartApi.current = chart;
-
-    const rsiSeries = chart.addLineSeries({
-      color: "#a855f7",
-      lineWidth: 1,
-      priceLineVisible: false,
-    });
-    rsiSeriesRef.current = rsiSeries;
-
-    rsiSeries.setData(
-      data.indicators.rsi_14.map((d) => ({
-        time: d.time as Time,
-        value: d.value,
-      }))
-    );
-    rsiSeries.createPriceLine({
-      price: 70,
-      color: "#ef4444",
-      lineWidth: 1,
-      lineStyle: 2,
-      axisLabelVisible: true,
-      title: "",
-    });
-    rsiSeries.createPriceLine({
-      price: 30,
-      color: "#22c55e",
-      lineWidth: 1,
-      lineStyle: 2,
-      axisLabelVisible: true,
-      title: "",
-    });
-    chart.priceScale("right").applyOptions({
-      scaleMargins: { top: 0.05, bottom: 0.05 },
-    });
-    chart.timeScale().fitContent();
-
-    const handleResize = () => {
-      if (rsiChartRef.current) {
-        chart.applyOptions({ width: rsiChartRef.current.clientWidth });
-      }
-    };
-    const observer = new ResizeObserver(handleResize);
-    observer.observe(rsiChartRef.current);
-
-    const mainChart = mainChartApi.current;
-    const crosshairHandler = mainChart
-      ? (param: { time?: unknown }) => {
-          if (param.time && rsiChartApi.current && rsiSeriesRef.current) {
-            rsiChartApi.current.setCrosshairPosition(
-              NaN,
-              param.time as Time,
-              rsiSeriesRef.current
-            );
-          }
-        }
-      : null;
-
-    if (mainChart && crosshairHandler) {
-      mainChart.subscribeCrosshairMove(crosshairHandler);
-    }
-
-    return () => {
-      if (mainChart && crosshairHandler) {
-        mainChart.unsubscribeCrosshairMove(crosshairHandler);
-      }
-      observer.disconnect();
-      chart.remove();
-      rsiChartApi.current = null;
-      rsiSeriesRef.current = null;
-    };
-  }, [colors, indicators.rsi, data]);
-
-  // Update main chart data
-  useEffect(() => {
-    const chart = mainChartApi.current;
-    if (!chart || !data) return;
-
-    const seriesToRemove: ISeriesApi<SeriesType>[] = [];
-
+    // Add price series
     if (viewType === "Candlestick") {
       const candleSeries = chart.addCandlestickSeries({
         upColor: "#22c55e",
@@ -217,7 +99,6 @@ export function InstrumentChart({ instrumentId }: InstrumentChartProps) {
         close: d.close,
       }));
       candleSeries.setData(candleData);
-      seriesToRemove.push(candleSeries);
     } else {
       const lineSeries = chart.addLineSeries({
         color: "#2563eb",
@@ -228,9 +109,9 @@ export function InstrumentChart({ instrumentId }: InstrumentChartProps) {
         value: d.close,
       }));
       lineSeries.setData(lineData);
-      seriesToRemove.push(lineSeries);
     }
 
+    // Volume overlay
     const volumeSeries = chart.addHistogramSeries({
       priceFormat: { type: "volume" },
       priceScaleId: "volume",
@@ -245,8 +126,8 @@ export function InstrumentChart({ instrumentId }: InstrumentChartProps) {
         d.close >= d.open ? "rgba(34,197,94,0.4)" : "rgba(239,68,68,0.4)",
     }));
     volumeSeries.setData(volumeData);
-    seriesToRemove.push(volumeSeries);
 
+    // SMA 20
     if (indicators.sma20 && data.indicators.sma_20.length > 0) {
       const sma20Series = chart.addLineSeries({
         color: "#3b82f6",
@@ -260,9 +141,9 @@ export function InstrumentChart({ instrumentId }: InstrumentChartProps) {
           value: d.value,
         }))
       );
-      seriesToRemove.push(sma20Series);
     }
 
+    // SMA 50
     if (indicators.sma50 && data.indicators.sma_50.length > 0) {
       const sma50Series = chart.addLineSeries({
         color: "#f97316",
@@ -276,23 +157,93 @@ export function InstrumentChart({ instrumentId }: InstrumentChartProps) {
           value: d.value,
         }))
       );
-      seriesToRemove.push(sma50Series);
     }
 
     chart.timeScale().fitContent();
 
-    return () => {
-      if (mainChartApi.current) {
-        seriesToRemove.forEach((s) => {
-          try {
-            mainChartApi.current?.removeSeries(s);
-          } catch {
-            // Series may already be removed if chart was destroyed
-          }
-        });
+    // Resize observer
+    const handleResize = () => {
+      if (mainChartRef.current) {
+        chart.applyOptions({ width: mainChartRef.current.clientWidth });
       }
     };
-  }, [data, viewType, indicators.sma20, indicators.sma50, resolvedTheme]);
+    const observer = new ResizeObserver(handleResize);
+    observer.observe(mainChartRef.current);
+
+    return () => {
+      observer.disconnect();
+      chart.remove();
+    };
+  }, [data, viewType, indicators.sma20, indicators.sma50, colors]);
+
+  // RSI chart — separate effect since it's a separate DOM element
+  useEffect(() => {
+    if (!rsiChartRef.current || !indicators.rsi || !data) return;
+
+    const chart = createChart(rsiChartRef.current, {
+      width: rsiChartRef.current.clientWidth,
+      height: RSI_HEIGHT,
+      layout: {
+        background: { type: ColorType.Solid, color: colors.background },
+        textColor: colors.textColor,
+      },
+      grid: {
+        vertLines: { color: colors.gridColor },
+        horzLines: { color: colors.gridColor },
+      },
+      crosshair: { mode: CrosshairMode.Normal },
+      rightPriceScale: { borderColor: colors.borderColor },
+      timeScale: { borderColor: colors.borderColor, visible: false },
+    });
+
+    const rsiSeries = chart.addLineSeries({
+      color: "#a855f7",
+      lineWidth: 1,
+      priceLineVisible: false,
+    });
+
+    rsiSeries.setData(
+      data.indicators.rsi_14.map((d) => ({
+        time: d.time as Time,
+        value: d.value,
+      }))
+    );
+
+    rsiSeries.createPriceLine({
+      price: 70,
+      color: "#ef4444",
+      lineWidth: 1,
+      lineStyle: 2,
+      axisLabelVisible: true,
+      title: "",
+    });
+    rsiSeries.createPriceLine({
+      price: 30,
+      color: "#22c55e",
+      lineWidth: 1,
+      lineStyle: 2,
+      axisLabelVisible: true,
+      title: "",
+    });
+
+    chart.priceScale("right").applyOptions({
+      scaleMargins: { top: 0.05, bottom: 0.05 },
+    });
+    chart.timeScale().fitContent();
+
+    const handleResize = () => {
+      if (rsiChartRef.current) {
+        chart.applyOptions({ width: rsiChartRef.current.clientWidth });
+      }
+    };
+    const observer = new ResizeObserver(handleResize);
+    observer.observe(rsiChartRef.current);
+
+    return () => {
+      observer.disconnect();
+      chart.remove();
+    };
+  }, [data, indicators.rsi, colors]);
 
   return (
     <Card>
@@ -310,11 +261,11 @@ export function InstrumentChart({ instrumentId }: InstrumentChartProps) {
         />
 
         {isLoading ? (
-          <div className="h-[400px] flex items-center justify-center">
+          <div className="h-[520px] flex items-center justify-center">
             <p className="text-muted-foreground">Loading chart data...</p>
           </div>
         ) : error ? (
-          <div className="h-[400px] flex items-center justify-center">
+          <div className="h-[520px] flex items-center justify-center">
             <p className="text-destructive">Chart data unavailable</p>
           </div>
         ) : (
