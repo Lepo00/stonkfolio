@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Plus, TrendingUp, TrendingDown, BarChart3, Sparkles } from "lucide-react";
+import {
+  Plus, TrendingUp, TrendingDown, BarChart3, Sparkles,
+  ShieldAlert, Layers, CircleDollarSign, Banknote, Brain, HeartPulse,
+} from "lucide-react";
+import type { AdviceItem } from "@/types/api";
 import {
   AreaChart,
   Area,
@@ -42,6 +46,31 @@ function colorClasses(positive: boolean) {
     : "text-red-600 dark:text-red-400";
 }
 
+const CATEGORY_ICONS: Record<AdviceItem["category"], React.ComponentType<{ className?: string }>> = {
+  risk: ShieldAlert,
+  performance: TrendingUp,
+  diversification: Layers,
+  cost: CircleDollarSign,
+  income: Banknote,
+  technical: BarChart3,
+  behavioral: Brain,
+  health: HeartPulse,
+};
+
+const PRIORITY_BORDER: Record<AdviceItem["priority"], string> = {
+  critical: "border-l-red-500",
+  warning: "border-l-amber-500",
+  info: "border-l-blue-500",
+  positive: "border-l-green-500",
+};
+
+const PRIORITY_ICON_COLOR: Record<AdviceItem["priority"], string> = {
+  critical: "text-red-600 dark:text-red-400",
+  warning: "text-amber-600 dark:text-amber-400",
+  info: "text-blue-600 dark:text-blue-400",
+  positive: "text-green-600 dark:text-green-400",
+};
+
 export default function DashboardPage() {
   const { selected } = usePortfolio();
   const [createOpen, setCreateOpen] = useState(false);
@@ -71,8 +100,11 @@ export default function DashboardPage() {
     queryKey: ["portfolio-advice", selected?.id],
     queryFn: () => getPortfolioAdvice(selected!.id),
     enabled: !!selected,
-    staleTime: 5 * 60 * 1000, // cache for 5 minutes
+    staleTime: 5 * 60 * 1000,
+    refetchInterval: (query) =>
+      query.state.data?.has_pending_analysis ? 10_000 : false,
   });
+  const [adviceExpanded, setAdviceExpanded] = useState(false);
 
   // --- No portfolio state ---
   if (!selected) {
@@ -289,32 +321,60 @@ export default function DashboardPage() {
           <div className="flex items-center gap-2 mb-3">
             <Sparkles className="size-4 text-primary" />
             <p className={labelClasses}>Portfolio Insights</p>
+            {adviceData?.has_pending_analysis && (
+              <span className="relative flex size-2">
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary/75" />
+                <span className="relative inline-flex size-2 rounded-full bg-primary" />
+              </span>
+            )}
           </div>
-          {adviceLoading ? (
+          {adviceLoading || (adviceData?.has_pending_analysis && !adviceData.items.length) ? (
             <div className="space-y-2">
               <div className="animate-pulse bg-muted rounded h-4 w-full" />
               <div className="animate-pulse bg-muted rounded h-4 w-3/4" />
+              <div className="animate-pulse bg-muted rounded h-4 w-1/2" />
             </div>
-          ) : adviceData?.advice ? (
-            <ul className="space-y-2">
-              {(Array.isArray(adviceData.advice)
-                ? adviceData.advice
-                : [adviceData.advice]
-              ).map((tip, i) => (
-                <li
-                  key={i}
-                  className="text-sm text-muted-foreground leading-relaxed"
+          ) : adviceData?.items.length ? (
+            <>
+              <div className="max-h-[200px] overflow-y-auto space-y-2">
+                {(adviceExpanded ? adviceData.items : adviceData.items.slice(0, 5)).map((item) => {
+                  const Icon = CATEGORY_ICONS[item.category];
+                  return (
+                    <div
+                      key={item.rule_id}
+                      className={`border-l-[3px] ${PRIORITY_BORDER[item.priority]} pl-3 py-1`}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <Icon className={`size-3.5 shrink-0 ${PRIORITY_ICON_COLOR[item.priority]}`} />
+                        <span className="text-sm font-medium leading-tight">{item.title}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
+                        {item.message.split(/\*\*(.*?)\*\*/g).map((part, j) =>
+                          j % 2 === 1 ? (
+                            <strong key={j} className="text-foreground">{part}</strong>
+                          ) : (
+                            part
+                          )
+                        )}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+              {adviceData.items.length > 5 && (
+                <button
+                  onClick={() => setAdviceExpanded((v) => !v)}
+                  className="text-xs text-primary hover:underline mt-2"
                 >
-                  {tip.split(/\*\*(.*?)\*\*/g).map((part, j) =>
-                    j % 2 === 1 ? (
-                      <strong key={j} className="text-foreground">{part}</strong>
-                    ) : (
-                      part
-                    )
-                  )}
-                </li>
-              ))}
-            </ul>
+                  {adviceExpanded ? "Show less" : `Show ${adviceData.items.length - 5} more`}
+                </button>
+              )}
+              {adviceData.disclaimer && (
+                <p className="text-[10px] text-muted-foreground/60 mt-3">
+                  {adviceData.disclaimer}
+                </p>
+              )}
+            </>
           ) : (
             <p className="text-sm text-muted-foreground">No advice available.</p>
           )}

@@ -136,3 +136,19 @@ export interface ChartData {
     rsi_14: IndicatorPoint[];
   };
 }
+
+export interface AdviceItem {
+  rule_id: string;
+  category: "risk" | "performance" | "diversification" | "cost" | "income" | "technical" | "behavioral" | "health";
+  priority: "critical" | "warning" | "info" | "positive";
+  title: string;
+  message: string;
+  holdings: string[];
+  metadata: Record<string, unknown>;
+}
+
+export interface AdviceResponse {
+  items: AdviceItem[];
+  has_pending_analysis: boolean;
+  disclaimer: string;
+}

@@ -2,6 +2,7 @@ import { apiClient } from "./client";
 import type {
   Portfolio, Holding, Transaction, PortfolioSummary,
   PerformanceSeries, AllocationItem, PaginatedResponse,
+  AdviceResponse,
 } from "@/types/api";
 
 export async function listPortfolios() {
@@ -37,5 +38,5 @@ export async function getTransactions(portfolioId: number) {
 }
 
 export async function getPortfolioAdvice(portfolioId: number) {
-  return apiClient<{ advice: string | string[] }>(`/portfolios/${portfolioId}/advice/`);
+  return apiClient<AdviceResponse>(`/portfolios/${portfolioId}/advice/`);
 }
