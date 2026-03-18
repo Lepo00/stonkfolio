@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { createPortfolio } from "@/lib/api/portfolios";
 import { usePortfolio } from "@/lib/portfolio-context";
@@ -23,17 +23,25 @@ interface CreatePortfolioDialogProps {
 }
 
 export function CreatePortfolioDialog({ open, onOpenChange }: CreatePortfolioDialogProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Create portfolio</DialogTitle>
+          <DialogDescription>
+            Give your portfolio a name to get started.
+          </DialogDescription>
+        </DialogHeader>
+        {open && <CreatePortfolioForm onOpenChange={onOpenChange} />}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CreatePortfolioForm({ onOpenChange }: { onOpenChange: (open: boolean) => void }) {
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const { setSelected, refreshPortfolios } = usePortfolio();
-
-  // Clear form when dialog opens/closes
-  useEffect(() => {
-    if (open) {
-      setName("");
-      setError(null);
-    }
-  }, [open]);
 
   const mutation = useMutation({
     mutationFn: (portfolioName: string) => createPortfolio(portfolioName.trim()),
@@ -70,43 +78,33 @@ export function CreatePortfolioDialog({ open, onOpenChange }: CreatePortfolioDia
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Create portfolio</DialogTitle>
-          <DialogDescription>
-            Give your portfolio a name to get started.
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <div className="space-y-2 py-4">
-            <Label htmlFor="portfolio-name">Name</Label>
-            <Input
-              id="portfolio-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Long-term investments"
-              maxLength={100}
-              autoFocus
-            />
-            {error && (
-              <p className="text-sm text-destructive">{error}</p>
-            )}
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={!canSubmit}>
-              {mutation.isPending ? "Creating..." : "Create"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <form onSubmit={handleSubmit}>
+      <div className="space-y-2 py-4">
+        <Label htmlFor="portfolio-name">Name</Label>
+        <Input
+          id="portfolio-name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="e.g. Long-term investments"
+          maxLength={100}
+          autoFocus
+        />
+        {error && (
+          <p className="text-sm text-destructive">{error}</p>
+        )}
+      </div>
+      <DialogFooter>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => onOpenChange(false)}
+        >
+          Cancel
+        </Button>
+        <Button type="submit" disabled={!canSubmit}>
+          {mutation.isPending ? "Creating..." : "Create"}
+        </Button>
+      </DialogFooter>
+    </form>
   );
 }
