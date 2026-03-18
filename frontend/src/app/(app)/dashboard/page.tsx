@@ -304,10 +304,15 @@ export default function DashboardPage() {
                 <li
                   key={i}
                   className="text-sm text-muted-foreground leading-relaxed"
-                  dangerouslySetInnerHTML={{
-                    __html: tip.replace(/\*\*(.*?)\*\*/g, "<strong class='text-foreground'>$1</strong>"),
-                  }}
-                />
+                >
+                  {tip.split(/\*\*(.*?)\*\*/g).map((part, j) =>
+                    j % 2 === 1 ? (
+                      <strong key={j} className="text-foreground">{part}</strong>
+                    ) : (
+                      part
+                    )
+                  )}
+                </li>
               ))}
             </ul>
           ) : (
