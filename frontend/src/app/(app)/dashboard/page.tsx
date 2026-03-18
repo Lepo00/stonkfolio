@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Plus, TrendingUp, TrendingDown, Package } from "lucide-react";
 import { usePortfolio } from "@/lib/portfolio-context";
 import { getHoldings, getSummary } from "@/lib/api/portfolios";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +17,34 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CreatePortfolioDialog } from "@/components/portfolios/create-portfolio-dialog";
+
+function SkeletonCard() {
+  return (
+    <Card className="shadow-sm">
+      <CardHeader className="pb-2">
+        <div className="animate-pulse bg-muted rounded h-4 w-24" />
+      </CardHeader>
+      <CardContent>
+        <div className="animate-pulse bg-muted rounded h-8 w-32" />
+      </CardContent>
+    </Card>
+  );
+}
+
+function SkeletonTable() {
+  return (
+    <Card className="shadow-sm">
+      <CardHeader>
+        <div className="animate-pulse bg-muted rounded h-5 w-20" />
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="animate-pulse bg-muted rounded h-10 w-full" />
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -39,6 +67,7 @@ export default function DashboardPage() {
     return (
       <div className="p-6">
         <h1 className="text-2xl font-bold">Dashboard</h1>
+        <p className="text-muted-foreground mt-1">Overview of your portfolio performance.</p>
         <p className="text-muted-foreground mt-4">
           Create a portfolio to get started.
         </p>
@@ -61,9 +90,18 @@ export default function DashboardPage() {
 
   if (summaryLoading || holdingsLoading) {
     return (
-      <div className="p-6">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground mt-4">Loading...</p>
+      <div className="p-6 space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold">Dashboard</h1>
+          <p className="text-muted-foreground mt-1">Overview of your portfolio performance.</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+        </div>
+        <SkeletonTable />
       </div>
     );
   }
@@ -71,13 +109,18 @@ export default function DashboardPage() {
   const holdings = holdingsData?.results ?? [];
   const gainLoss = parseFloat(summary?.total_gain_loss ?? "0");
   const returnPct = parseFloat(summary?.total_return_pct ?? "0");
+  const isGainPositive = gainLoss >= 0;
+  const isReturnPositive = returnPct >= 0;
 
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">Dashboard</h1>
+      <div>
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <p className="text-muted-foreground mt-1">Overview of your portfolio performance.</p>
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
+        <Card className="shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Total Value
@@ -85,7 +128,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">
-              {parseFloat(summary?.total_value ?? "0").toLocaleString(undefined, {
+              €{parseFloat(summary?.total_value ?? "0").toLocaleString(undefined, {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
               })}
@@ -93,7 +136,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Total Cost
@@ -101,7 +144,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">
-              {parseFloat(summary?.total_cost ?? "0").toLocaleString(undefined, {
+              €{parseFloat(summary?.total_cost ?? "0").toLocaleString(undefined, {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
               })}
@@ -109,53 +152,69 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Gain / Loss
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p
-              className={`text-2xl font-bold ${
-                gainLoss >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
-              }`}
-            >
-              {gainLoss >= 0 ? "+" : ""}
-              {gainLoss.toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
-            </p>
+            <div className="flex items-center gap-1.5">
+              {isGainPositive ? (
+                <TrendingUp className="size-5 text-green-600 dark:text-green-400 shrink-0" />
+              ) : (
+                <TrendingDown className="size-5 text-red-600 dark:text-red-400 shrink-0" />
+              )}
+              <p
+                className={`text-2xl font-bold ${
+                  isGainPositive ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+                }`}
+              >
+                {isGainPositive ? "+" : ""}€{gainLoss.toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </p>
+            </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Return %
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p
-              className={`text-2xl font-bold ${
-                returnPct >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
-              }`}
-            >
-              {returnPct >= 0 ? "+" : ""}
-              {returnPct.toFixed(2)}%
-            </p>
+            <div className="flex items-center gap-1.5">
+              {isReturnPositive ? (
+                <TrendingUp className="size-5 text-green-600 dark:text-green-400 shrink-0" />
+              ) : (
+                <TrendingDown className="size-5 text-red-600 dark:text-red-400 shrink-0" />
+              )}
+              <p
+                className={`text-2xl font-bold ${
+                  isReturnPositive ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+                }`}
+              >
+                {isReturnPositive ? "+" : ""}
+                {returnPct.toFixed(2)}%
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
+      <Card className="shadow-sm">
         <CardHeader>
           <CardTitle>Holdings</CardTitle>
         </CardHeader>
         <CardContent>
           {holdings.length === 0 ? (
-            <p className="text-muted-foreground">No holdings yet</p>
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-3">
+              <Package className="size-10 opacity-40" />
+              <p className="text-sm">No holdings yet</p>
+            </div>
           ) : (
             <Table>
               <TableHeader>

@@ -13,13 +13,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { ArrowLeftRight } from "lucide-react";
 
 const typeBadgeClass: Record<string, string> = {
   BUY: "bg-green-100 text-green-800 hover:bg-green-100 dark:bg-green-900 dark:text-green-400 dark:hover:bg-green-900",
   SELL: "bg-red-100 text-red-800 hover:bg-red-100 dark:bg-red-900 dark:text-red-400 dark:hover:bg-red-900",
-  DIVIDEND: "bg-blue-100 text-blue-800 hover:bg-blue-100",
-  FEE: "bg-yellow-100 text-yellow-800 hover:bg-yellow-100",
-  FX: "bg-gray-100 text-gray-800 hover:bg-gray-100",
+  DIVIDEND: "bg-blue-100 text-blue-800 hover:bg-blue-100 dark:bg-blue-900 dark:text-blue-400 dark:hover:bg-blue-900",
+  FEE: "bg-yellow-100 text-yellow-800 hover:bg-yellow-100 dark:bg-yellow-900 dark:text-yellow-400 dark:hover:bg-yellow-900",
+  FX: "bg-gray-100 text-gray-800 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-800",
 };
 
 export default function TransactionsPage() {
@@ -35,9 +36,11 @@ export default function TransactionsPage() {
     return (
       <div className="p-6">
         <h1 className="text-2xl font-bold">Transactions</h1>
-        <p className="text-muted-foreground mt-4">
-          Create a portfolio to get started
-        </p>
+        <p className="text-muted-foreground mt-1">All your buy, sell, and dividend transactions.</p>
+        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground mt-6">
+          <ArrowLeftRight className="size-12 mb-3 opacity-30" />
+          <p>No transactions yet</p>
+        </div>
       </div>
     );
   }
@@ -54,7 +57,13 @@ export default function TransactionsPage() {
     return (
       <div className="p-6">
         <h1 className="text-2xl font-bold">Transactions</h1>
-        <p className="text-muted-foreground mt-4">Loading...</p>
+        <p className="text-muted-foreground mt-1">All your buy, sell, and dividend transactions.</p>
+        <div className="mt-6 space-y-3">
+          <div className="h-4 w-1/3 animate-pulse rounded bg-muted" />
+          <div className="h-4 w-full animate-pulse rounded bg-muted" />
+          <div className="h-4 w-full animate-pulse rounded bg-muted" />
+          <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
+        </div>
       </div>
     );
   }
@@ -64,6 +73,7 @@ export default function TransactionsPage() {
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold">Transactions</h1>
+      <p className="text-muted-foreground mt-1">All your buy, sell, and dividend transactions.</p>
 
       <Card>
         <CardHeader>
@@ -71,7 +81,10 @@ export default function TransactionsPage() {
         </CardHeader>
         <CardContent>
           {transactions.length === 0 ? (
-            <p className="text-muted-foreground">No transactions yet</p>
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <ArrowLeftRight className="size-12 mb-3 opacity-30" />
+              <p>No transactions yet</p>
+            </div>
           ) : (
             <Table>
               <TableHeader>

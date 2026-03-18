@@ -5,6 +5,7 @@ import { usePortfolio } from "@/lib/portfolio-context";
 import { getAllocation } from "@/lib/api/portfolios";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PieChart as PieChartIcon } from "lucide-react";
 import {
   PieChart,
   Pie,
@@ -44,13 +45,18 @@ function AllocationChart({ portfolioId, groupBy }: { portfolioId: number; groupB
   }
 
   if (isLoading) {
-    return <p className="text-muted-foreground">Loading...</p>;
+    return <div className="h-[400px] w-full animate-pulse rounded bg-muted" />;
   }
 
   const items = data ?? [];
 
   if (items.length === 0) {
-    return <p className="text-muted-foreground">No allocation data available</p>;
+    return (
+      <div className="flex flex-col items-center justify-center h-[400px] text-muted-foreground">
+        <PieChartIcon className="size-12 mb-3 opacity-30" />
+        <p>No allocation data yet</p>
+      </div>
+    );
   }
 
   const chartData = items.map((item) => ({
@@ -99,9 +105,11 @@ export default function AllocationPage() {
     return (
       <div className="p-6">
         <h1 className="text-2xl font-bold">Allocation</h1>
-        <p className="text-muted-foreground mt-4">
-          Create a portfolio to get started
-        </p>
+        <p className="text-muted-foreground mt-1">See how your investments are distributed.</p>
+        <div className="flex flex-col items-center justify-center h-[400px] text-muted-foreground mt-6">
+          <PieChartIcon className="size-12 mb-3 opacity-30" />
+          <p>No allocation data yet</p>
+        </div>
       </div>
     );
   }
@@ -109,6 +117,7 @@ export default function AllocationPage() {
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold">Allocation</h1>
+      <p className="text-muted-foreground mt-1">See how your investments are distributed.</p>
 
       <Card>
         <CardHeader>

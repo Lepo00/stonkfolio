@@ -1,11 +1,13 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { getInstrumentDetail, getInstrumentAnalysis } from "@/lib/api/instruments";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { ArrowLeft } from "lucide-react";
 import { InstrumentChart } from "@/components/charts/instrument-chart";
 
 const recommendationColor: Record<string, string> = {
@@ -22,6 +24,7 @@ const confidenceLabel: Record<string, string> = {
 
 export default function InstrumentDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const id = Number(params.id);
   const validId = !isNaN(id);
 
@@ -55,8 +58,14 @@ export default function InstrumentDetailPage() {
 
   if (instrumentLoading) {
     return (
-      <div className="p-6">
-        <p className="text-muted-foreground">Loading instrument details...</p>
+      <div className="p-6 space-y-4">
+        <Button variant="ghost" size="sm" onClick={() => router.back()} className="mb-2 -ml-2 text-muted-foreground">
+          <ArrowLeft className="size-4 mr-1" />Back
+        </Button>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="h-48 animate-pulse rounded-lg bg-muted" />
+          <div className="h-48 animate-pulse rounded-lg bg-muted" />
+        </div>
       </div>
     );
   }
@@ -71,6 +80,9 @@ export default function InstrumentDetailPage() {
 
   return (
     <div className="p-6 space-y-6">
+      <Button variant="ghost" size="sm" onClick={() => router.back()} className="mb-2 -ml-2 text-muted-foreground">
+        <ArrowLeft className="size-4 mr-1" />Back
+      </Button>
       <div>
         <h1 className="text-2xl font-bold">{instrument.name}</h1>
         <p className="text-muted-foreground">
@@ -144,7 +156,11 @@ export default function InstrumentDetailPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {analysisLoading ? (
-            <p className="text-muted-foreground">Loading analysis...</p>
+            <div className="space-y-3">
+              <div className="h-6 w-24 animate-pulse rounded bg-muted" />
+              <div className="h-4 w-full animate-pulse rounded bg-muted" />
+              <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
+            </div>
           ) : analysisError || !analysis ? (
             <p className="text-muted-foreground">Analysis unavailable.</p>
           ) : (

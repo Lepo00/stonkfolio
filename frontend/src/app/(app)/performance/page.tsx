@@ -6,6 +6,7 @@ import { usePortfolio } from "@/lib/portfolio-context";
 import { getPerformance } from "@/lib/api/portfolios";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { LineChart as LineChartIcon } from "lucide-react";
 import {
   LineChart,
   Line,
@@ -32,9 +33,11 @@ export default function PerformancePage() {
     return (
       <div className="p-6">
         <h1 className="text-2xl font-bold">Performance</h1>
-        <p className="text-muted-foreground mt-4">
-          Create a portfolio to get started
-        </p>
+        <p className="text-muted-foreground mt-1">Track your portfolio value over time.</p>
+        <div className="flex flex-col items-center justify-center h-[400px] text-muted-foreground mt-6">
+          <LineChartIcon className="size-12 mb-3 opacity-30" />
+          <p>No performance data yet</p>
+        </div>
       </div>
     );
   }
@@ -56,6 +59,7 @@ export default function PerformancePage() {
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold">Performance</h1>
+      <p className="text-muted-foreground mt-1">Track your portfolio value over time.</p>
 
       <div className="flex gap-2">
         {PERIODS.map((p) => (
@@ -76,11 +80,12 @@ export default function PerformancePage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <p className="text-muted-foreground">Loading...</p>
+            <div className="h-[400px] w-full animate-pulse rounded bg-muted" />
           ) : series.length === 0 ? (
-            <p className="text-muted-foreground">
-              No performance data available
-            </p>
+            <div className="flex flex-col items-center justify-center h-[400px] text-muted-foreground">
+              <LineChartIcon className="size-12 mb-3 opacity-30" />
+              <p>No performance data yet</p>
+            </div>
           ) : (
             <ResponsiveContainer width="100%" height={400}>
               <LineChart data={series}>
