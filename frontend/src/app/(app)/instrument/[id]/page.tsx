@@ -16,6 +16,12 @@ const recommendationColor: Record<string, string> = {
   SELL: "bg-red-600 hover:bg-red-600",
 };
 
+const tintClasses: Record<string, string> = {
+  BUY: "bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800",
+  HOLD: "bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800",
+  SELL: "bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800",
+};
+
 const confidenceLabel: Record<string, string> = {
   low: "Low Confidence",
   medium: "Medium Confidence",
@@ -90,6 +96,75 @@ export default function InstrumentDetailPage() {
         </p>
       </div>
 
+      {/* AI Analysis Hero Banner */}
+      {analysisLoading ? (
+        <Card className="rounded-xl">
+          <CardContent className="p-6 space-y-3">
+            <div className="h-8 w-24 animate-pulse rounded bg-muted" />
+            <div className="h-4 w-full animate-pulse rounded bg-muted" />
+            <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
+          </CardContent>
+        </Card>
+      ) : !analysisError && analysis ? (
+        <div className={`rounded-xl p-6 space-y-4 ${tintClasses[analysis.recommendation] ?? "border"}`}>
+          <div className="flex justify-between items-center">
+            <Badge
+              className={`text-white text-lg px-4 py-1 ${recommendationColor[analysis.recommendation]}`}
+            >
+              {analysis.recommendation}
+            </Badge>
+            <span className="text-sm text-muted-foreground">
+              {confidenceLabel[analysis.confidence] ?? analysis.confidence}
+            </span>
+          </div>
+
+          <p className="text-sm leading-relaxed">{analysis.reasoning}</p>
+
+          <Separator />
+
+          <div className="flex flex-wrap gap-2">
+            {analysis.signals.map((s, i) => (
+              <Badge
+                key={i}
+                variant="outline"
+                className={
+                  s.sentiment === "bullish"
+                    ? "border-green-500 text-green-700 dark:text-green-400"
+                    : "border-red-500 text-red-700 dark:text-red-400"
+                }
+              >
+                {s.signal}
+              </Badge>
+            ))}
+          </div>
+
+          <Separator />
+
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-sm">
+            <div>
+              <p className="text-muted-foreground">Current Price</p>
+              <p className="font-medium">{analysis.metrics.current_price}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">SMA 20</p>
+              <p className="font-medium">{analysis.metrics.sma_20}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">SMA 50</p>
+              <p className="font-medium">{analysis.metrics.sma_50}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Weekly Change</p>
+              <p className="font-medium">{analysis.metrics.weekly_change_pct}%</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Monthly Change</p>
+              <p className="font-medium">{analysis.metrics.monthly_change_pct}%</p>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {/* Instrument Info & Price */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
@@ -148,88 +223,6 @@ export default function InstrumentDetailPage() {
 
       {/* Interactive Chart */}
       {instrument.ticker && <InstrumentChart instrumentId={id} />}
-
-      {/* AI Analysis */}
-      <Card>
-        <CardHeader>
-          <CardTitle>AI Analysis</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {analysisLoading ? (
-            <div className="space-y-3">
-              <div className="h-6 w-24 animate-pulse rounded bg-muted" />
-              <div className="h-4 w-full animate-pulse rounded bg-muted" />
-              <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
-            </div>
-          ) : analysisError || !analysis ? (
-            <p className="text-muted-foreground">Analysis unavailable.</p>
-          ) : (
-            <>
-              <div className="flex items-center gap-3">
-                <Badge
-                  className={`text-white text-lg px-4 py-1 ${recommendationColor[analysis.recommendation]}`}
-                >
-                  {analysis.recommendation}
-                </Badge>
-                <span className="text-sm text-muted-foreground">
-                  {confidenceLabel[analysis.confidence] ?? analysis.confidence}
-                </span>
-              </div>
-
-              <p className="text-sm leading-relaxed">{analysis.reasoning}</p>
-
-              <Separator />
-
-              <div>
-                <h3 className="text-sm font-semibold mb-2">Signals</h3>
-                <div className="flex flex-wrap gap-2">
-                  {analysis.signals.map((s, i) => (
-                    <Badge
-                      key={i}
-                      variant="outline"
-                      className={
-                        s.sentiment === "bullish"
-                          ? "border-green-500 text-green-700 dark:text-green-400"
-                          : "border-red-500 text-red-700 dark:text-red-400"
-                      }
-                    >
-                      {s.signal}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-
-              <Separator />
-
-              <div>
-                <h3 className="text-sm font-semibold mb-2">Metrics</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Current Price</p>
-                    <p className="font-medium">{analysis.metrics.current_price}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">SMA 20</p>
-                    <p className="font-medium">{analysis.metrics.sma_20}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">SMA 50</p>
-                    <p className="font-medium">{analysis.metrics.sma_50}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Weekly Change</p>
-                    <p className="font-medium">{analysis.metrics.weekly_change_pct}%</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Monthly Change</p>
-                    <p className="font-medium">{analysis.metrics.monthly_change_pct}%</p>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
 
       {/* News */}
       {instrument.news && instrument.news.length > 0 && (
