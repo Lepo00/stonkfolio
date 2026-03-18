@@ -76,7 +76,7 @@ export default function PerformancePage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Portfolio Value Over Time</CardTitle>
+          <CardTitle className="text-xs uppercase tracking-wider text-muted-foreground font-medium">Portfolio Value Over Time</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (

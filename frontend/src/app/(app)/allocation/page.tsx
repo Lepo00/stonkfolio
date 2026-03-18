@@ -121,7 +121,7 @@ export default function AllocationPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Portfolio Allocation</CardTitle>
+          <CardTitle className="text-xs uppercase tracking-wider text-muted-foreground font-medium">Portfolio Allocation</CardTitle>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="sector">

@@ -77,7 +77,7 @@ export default function TransactionsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Transaction History</CardTitle>
+          <CardTitle className="text-xs uppercase tracking-wider text-muted-foreground font-medium">Transaction History</CardTitle>
         </CardHeader>
         <CardContent>
           {transactions.length === 0 ? (
