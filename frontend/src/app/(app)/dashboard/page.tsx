@@ -132,8 +132,8 @@ export default function DashboardPage() {
   const sinceLabel = formatSinceDate(summary?.first_transaction_date ?? null);
 
   return (
-    <div className="p-6 flex flex-col min-h-full">
-      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4 flex-1">
+    <div className="p-6 min-h-full flex flex-col justify-center">
+      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4">
         {/* --- Hero: Total Value (top-left) --- */}
         <Card className="shadow-sm">
           <CardContent className="pt-6">
