@@ -66,14 +66,14 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   return (
     <aside
       className={cn(
-        "flex h-screen flex-col border-r bg-background transition-all duration-200",
+        "flex h-screen flex-col border-r border-border/50 bg-sidebar transition-all duration-200",
         collapsed ? "w-16" : "w-64"
       )}
     >
       {/* App name + collapse toggle */}
       <div className="flex h-14 items-center justify-between px-3">
         {!collapsed && (
-          <h1 className="text-lg font-semibold tracking-tight pl-1">Stonkfolio</h1>
+          <h1 className="text-xl font-bold tracking-tight pl-1">Stonkfolio</h1>
         )}
         <Button
           variant="ghost"
@@ -158,14 +158,14 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
               href={item.href}
               title={collapsed ? item.label : undefined}
               className={cn(
-                "flex items-center rounded-md py-2 text-sm font-medium transition-colors",
+                "flex items-center rounded-lg py-2 text-sm font-medium transition-colors",
                 collapsed ? "justify-center px-2" : "gap-3 px-3",
                 isActive
-                  ? "bg-primary/10 text-primary font-semibold border-l-2 border-primary"
+                  ? "rounded-lg bg-primary/10 text-primary font-semibold"
                   : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
               )}
             >
-              <Icon className="size-4 shrink-0" />
+              <Icon className="size-5 shrink-0" />
               {!collapsed && item.label}
             </Link>
           );
