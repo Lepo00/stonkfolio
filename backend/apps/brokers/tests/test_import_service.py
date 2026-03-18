@@ -75,7 +75,8 @@ class TestImportService:
 
         holding = Holding.objects.get(portfolio=self.portfolio, instrument=self.instrument)
         assert holding.quantity == Decimal("15")
-        assert abs(holding.avg_buy_price - Decimal("75.6667")) < Decimal("0.001")
+        # (10*75.50 + 2.00 + 5*76.00 + 2.00) / 15 = 1139/15 = 75.9333
+        assert abs(holding.avg_buy_price - Decimal("75.9333")) < Decimal("0.001")
 
     @patch("apps.brokers.services.InstrumentResolver")
     def test_import_sell_reduces_holding(self, MockResolver):
@@ -103,7 +104,8 @@ class TestImportService:
 
         holding = Holding.objects.get(portfolio=self.portfolio, instrument=self.instrument)
         assert holding.quantity == Decimal("6")
-        assert holding.avg_buy_price == Decimal("75.50")
+        # (10*75.50 + 2.00) / 10 = 75.70, unchanged after sell
+        assert holding.avg_buy_price == Decimal("75.70")
 
     @patch("apps.brokers.services.InstrumentResolver")
     def test_import_full_sell_deletes_holding(self, MockResolver):

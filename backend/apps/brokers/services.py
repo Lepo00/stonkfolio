@@ -72,7 +72,7 @@ class ImportService:
         for tx in txs:
             if tx.type == TransactionType.BUY:
                 total_qty += tx.quantity
-                total_cost += tx.quantity * tx.price
+                total_cost += tx.quantity * tx.price + tx.fee
             elif tx.type == TransactionType.SELL:
                 if total_qty > 0:
                     avg_cost = total_cost / total_qty
