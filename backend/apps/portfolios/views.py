@@ -117,7 +117,8 @@ class PortfolioPerformanceView(APIView):
             elif tx.type == TransactionType.SELL:
                 changes["events"].append((tx.date, -tx.quantity))
 
-        series_map = {}
+        # Build per-instrument daily values
+        inst_series = {}  # {instrument_id: {date: value}}
         for inst_data in instrument_changes.values():
             instrument = inst_data["instrument"]
             events = inst_data["events"]
@@ -128,13 +129,31 @@ class PortfolioPerformanceView(APIView):
 
             qty = Decimal("0")
             event_idx = 0
+            daily = {}
             for pp in prices:
                 while event_idx < len(events) and events[event_idx][0] <= pp.date:
                     qty += events[event_idx][1]
                     event_idx += 1
                 if qty > 0:
-                    series_map.setdefault(pp.date, Decimal("0"))
-                    series_map[pp.date] += qty * pp.price
+                    daily[pp.date] = qty * pp.price
+
+            if daily:
+                inst_series[instrument.id] = daily
+
+        # Build unified date range and carry forward missing values
+        all_dates = sorted({d for daily in inst_series.values() for d in daily})
+        series_map = {}
+        for d in all_dates:
+            total = Decimal("0")
+            for inst_id, daily in inst_series.items():
+                if d in daily:
+                    total += daily[d]
+                else:
+                    # Carry forward: find the most recent date before d
+                    prev_dates = [pd for pd in daily if pd < d]
+                    if prev_dates:
+                        total += daily[max(prev_dates)]
+            series_map[d] = total
 
         series = [{"date": str(d), "value": f"{v:.2f}"} for d, v in sorted(series_map.items())]
 
