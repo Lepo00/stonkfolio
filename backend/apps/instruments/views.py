@@ -234,14 +234,16 @@ class InstrumentChartView(APIView):
         ohlc = []
         for idx, row in df.iterrows():
             time_val = int(idx.timestamp()) if is_intraday else str(idx.date())
-            ohlc.append({
-                "time": time_val,
-                "open": round(float(row["Open"]), 4),
-                "high": round(float(row["High"]), 4),
-                "low": round(float(row["Low"]), 4),
-                "close": round(float(row["Close"]), 4),
-                "volume": int(row["Volume"]),
-            })
+            ohlc.append(
+                {
+                    "time": time_val,
+                    "open": round(float(row["Open"]), 4),
+                    "high": round(float(row["High"]), 4),
+                    "low": round(float(row["Low"]), 4),
+                    "close": round(float(row["Close"]), 4),
+                    "volume": int(row["Volume"]),
+                }
+            )
 
         closes = df["Close"].astype(float)
         indicators = {
@@ -250,9 +252,11 @@ class InstrumentChartView(APIView):
             "rsi_14": calculate_rsi(closes, window=14, intraday=is_intraday),
         }
 
-        return Response({
-            "ticker": instrument.ticker,
-            "currency": instrument.currency,
-            "ohlc": ohlc,
-            "indicators": indicators,
-        })
+        return Response(
+            {
+                "ticker": instrument.ticker,
+                "currency": instrument.currency,
+                "ohlc": ohlc,
+                "indicators": indicators,
+            }
+        )

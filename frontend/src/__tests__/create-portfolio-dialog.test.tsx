@@ -49,12 +49,11 @@ jest.mock("@/components/ui/input", () => ({
 }));
 
 jest.mock("@/components/ui/button", () => ({
-  Button: ({ children, onClick, disabled, type, variant }: {
+  Button: ({ children, onClick, disabled, type }: {
     children: React.ReactNode;
     onClick?: () => void;
     disabled?: boolean;
     type?: "button" | "submit" | "reset";
-    variant?: string;
   }) =>
     React.createElement("button", { onClick, disabled, type }, children),
 }));

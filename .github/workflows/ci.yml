@@ -39,6 +39,8 @@ jobs:
           cache-dependency-path: backend/requirements.txt
       - run: pip install -r requirements.txt
       - run: python -m pytest -v --tb=short
+        env:
+          DJANGO_SECRET_KEY: ci-test-secret-key
 
   frontend-lint:
     name: Frontend Lint

@@ -44,7 +44,7 @@ jest.mock("@/components/ui/card", () => ({
 }));
 
 jest.mock("@/components/ui/button", () => ({
-  Button: ({ children, onClick, disabled, variant, size, className, ...rest }: Record<string, unknown>) =>
+  Button: ({ children, onClick, disabled, className, ...rest }: Record<string, unknown>) =>
     React.createElement(
       "button",
       { onClick, disabled, className, "aria-pressed": rest["aria-pressed"] },

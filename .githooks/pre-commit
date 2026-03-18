@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -e
+
+# Backend lint (ruff check + format)
+if git diff --cached --name-only | grep -q '^backend/'; then
+  echo "Running backend lint..."
+  if docker compose ps backend --status running -q 2>/dev/null | grep -q .; then
+    docker compose exec -T backend ruff check . || {
+      echo "Backend ruff check failed. Fix errors before committing."
+      exit 1
+    }
+    docker compose exec -T backend ruff format --check . || {
+      echo "Backend formatting check failed. Run: docker compose exec backend ruff format ."
+      exit 1
+    }
+  else
+    echo "Warning: backend container not running, skipping backend lint."
+  fi
+fi
+
+# Frontend lint (eslint)
+if git diff --cached --name-only | grep -q '^frontend/'; then
+  echo "Running frontend lint..."
+  (cd frontend && npx eslint src/) || {
+    echo "Frontend ESLint failed. Fix errors before committing."
+    exit 1
+  }
+fi

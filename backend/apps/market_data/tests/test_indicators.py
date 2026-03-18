@@ -59,6 +59,7 @@ class TestCalculateRSI:
     def test_rsi_bounds(self):
         dates = pd.date_range("2025-01-01", periods=50, freq="D")
         import numpy as np
+
         np.random.seed(42)
         closes = pd.Series(np.random.uniform(90, 110, 50), index=dates)
         result = calculate_rsi(closes, window=14)

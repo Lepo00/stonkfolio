@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useSyncExternalStore } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";
 import { updateMe } from "@/lib/api/auth";
@@ -43,18 +43,22 @@ const BROKERS = [
   { value: "bitpanda", label: "Bitpanda" },
 ];
 
-function useLocalStorage(key: string, defaultValue: string) {
-  const [value, setValue] = useState(defaultValue);
+function subscribeToStorage(callback: () => void) {
+  window.addEventListener("storage", callback);
+  return () => window.removeEventListener("storage", callback);
+}
 
-  useEffect(() => {
-    const stored = localStorage.getItem(key);
-    if (stored !== null) setValue(stored);
-  }, [key]);
+function useLocalStorage(key: string, defaultValue: string) {
+  const value = useSyncExternalStore(
+    subscribeToStorage,
+    () => localStorage.getItem(key) ?? defaultValue,
+    () => defaultValue
+  );
 
   const set = useCallback(
     (newValue: string) => {
-      setValue(newValue);
       localStorage.setItem(key, newValue);
+      window.dispatchEvent(new Event("storage"));
     },
     [key]
   );
@@ -63,17 +67,19 @@ function useLocalStorage(key: string, defaultValue: string) {
 }
 
 function useLocalStorageBool(key: string, defaultValue: boolean) {
-  const [value, setValue] = useState(defaultValue);
-
-  useEffect(() => {
-    const stored = localStorage.getItem(key);
-    if (stored !== null) setValue(stored === "true");
-  }, [key]);
+  const value = useSyncExternalStore(
+    subscribeToStorage,
+    () => {
+      const stored = localStorage.getItem(key);
+      return stored !== null ? stored === "true" : defaultValue;
+    },
+    () => defaultValue
+  );
 
   const set = useCallback(
     (newValue: boolean) => {
-      setValue(newValue);
       localStorage.setItem(key, String(newValue));
+      window.dispatchEvent(new Event("storage"));
     },
     [key]
   );
