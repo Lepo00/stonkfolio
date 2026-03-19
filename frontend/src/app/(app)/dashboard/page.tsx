@@ -150,6 +150,8 @@ export default function DashboardPage() {
   const gainLoss = parseFloat(summary?.total_gain_loss ?? "0");
   const returnPct = parseFloat(summary?.total_return_pct ?? "0");
   const isPositive = gainLoss >= 0;
+  const twrPct = summary?.twr_return_pct ? parseFloat(summary.twr_return_pct) : null;
+  const xirrPct = summary?.xirr_return_pct ? parseFloat(summary.xirr_return_pct) : null;
 
   const series = perfData?.series ?? [];
   const chartData = series.map((s) => ({
@@ -304,6 +306,26 @@ export default function DashboardPage() {
             </div>
             {sinceLabel && (
               <p className="text-xs text-muted-foreground mt-2">{sinceLabel}</p>
+            )}
+            {(twrPct !== null || xirrPct !== null) && (
+              <div className="border-t pt-2 mt-2 space-y-1">
+                {twrPct !== null && (
+                  <div className="flex items-center justify-between">
+                    <span className={labelClasses}>TWR (ann.)</span>
+                    <span className={`text-xs font-medium ${colorClasses(twrPct >= 0)}`}>
+                      {twrPct >= 0 ? "+" : ""}{twrPct.toFixed(2)}%
+                    </span>
+                  </div>
+                )}
+                {xirrPct !== null && (
+                  <div className="flex items-center justify-between">
+                    <span className={labelClasses}>XIRR (ann.)</span>
+                    <span className={`text-xs font-medium ${colorClasses(xirrPct >= 0)}`}>
+                      {xirrPct >= 0 ? "+" : ""}{xirrPct.toFixed(2)}%
+                    </span>
+                  </div>
+                )}
+              </div>
             )}
           </CardContent>
         </Card>
