@@ -153,6 +153,41 @@ class TestPortfolioAnalytics:
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
 
     @patch("apps.portfolios.views.MarketDataService")
+    def test_summary_with_benchmark(self, MockService):
+        Transaction.objects.create(
+            portfolio=self.portfolio,
+            instrument=self.inst,
+            type=TransactionType.BUY,
+            quantity=Decimal("10"),
+            price=Decimal("75.50"),
+            fee=Decimal("0"),
+            date=date(2025, 1, 1),
+            broker_source="degiro",
+            broker_reference="ref5",
+        )
+        MockService.return_value.get_current_price.return_value = PriceResult(
+            price=Decimal("80.00"),
+            currency="EUR",
+        )
+        MockService.return_value.get_benchmark_series.return_value = [
+            {"date": "2025-01-01", "value": "100.00"},
+            {"date": "2026-03-19", "value": "112.50"},
+        ]
+        resp = self.client.get(f"/api/portfolios/{self.portfolio.id}/summary/?benchmark=sp500")
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.data["benchmark_return_pct"] == "12.50"
+
+    @patch("apps.portfolios.views.MarketDataService")
+    def test_summary_without_benchmark(self, MockService):
+        MockService.return_value.get_current_price.return_value = PriceResult(
+            price=Decimal("80.00"),
+            currency="EUR",
+        )
+        resp = self.client.get(f"/api/portfolios/{self.portfolio.id}/summary/")
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.data["benchmark_return_pct"] is None
+
+    @patch("apps.portfolios.views.MarketDataService")
     def test_summary_includes_twr_and_xirr(self, MockService):
         """Summary response should include twr_return_pct and xirr_return_pct fields."""
         Transaction.objects.create(

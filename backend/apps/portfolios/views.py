@@ -92,6 +92,18 @@ class PortfolioSummaryView(APIView):
         twr = calculate_twr(portfolio, service)
         xirr = calculate_xirr(portfolio, service)
 
+        # Benchmark return
+        benchmark_key = request.query_params.get("benchmark")
+        benchmark_return_pct = None
+
+        if benchmark_key and first_tx:
+            benchmark_series = service.get_benchmark_series(benchmark_key, first_tx, date.today())
+            if benchmark_series and len(benchmark_series) >= 2:
+                start_val = Decimal(benchmark_series[0]["value"])
+                end_val = Decimal(benchmark_series[-1]["value"])
+                if start_val > 0:
+                    benchmark_return_pct = f"{((end_val - start_val) / start_val * 100):.2f}"
+
         return Response(
             {
                 "total_value": f"{total_value:.2f}",
@@ -101,6 +113,7 @@ class PortfolioSummaryView(APIView):
                 "first_transaction_date": str(first_tx) if first_tx else None,
                 "twr_return_pct": f"{twr:.2f}" if twr is not None else None,
                 "xirr_return_pct": f"{xirr:.2f}" if xirr is not None else None,
+                "benchmark_return_pct": benchmark_return_pct,
             }
         )
 
