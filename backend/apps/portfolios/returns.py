@@ -151,3 +151,110 @@ def calculate_twr(
         return (annualized * 100).quantize(Decimal("0.01"))
     except (InvalidOperation, OverflowError):
         return None
+
+
+def _xirr_npv(rate: float, cash_flows: list[tuple[date, float]]) -> float:
+    """Compute NPV for a given annual rate and dated cash flows."""
+    if not cash_flows:
+        return 0.0
+    t0 = cash_flows[0][0]
+    npv = 0.0
+    for d, amount in cash_flows:
+        years = (d - t0).days / 365.0
+        npv += amount / ((1.0 + rate) ** years)
+    return npv
+
+
+def _xirr_npv_deriv(rate: float, cash_flows: list[tuple[date, float]]) -> float:
+    """Compute derivative of NPV w.r.t. rate for Newton-Raphson."""
+    if not cash_flows:
+        return 0.0
+    t0 = cash_flows[0][0]
+    deriv = 0.0
+    for d, amount in cash_flows:
+        years = (d - t0).days / 365.0
+        if years == 0:
+            continue
+        deriv -= years * amount / ((1.0 + rate) ** (years + 1.0))
+    return deriv
+
+
+def calculate_xirr(
+    portfolio: Portfolio,
+    service: MarketDataService,
+    max_iterations: int = 100,
+    tolerance: float = 1e-7,
+) -> Decimal | None:
+    """Calculate XIRR (Extended Internal Rate of Return) using Newton-Raphson.
+
+    Cash flows:
+    - BUY:      negative (money out) = -(quantity * price + fee)
+    - SELL:     positive (money in)  = +(quantity * price - fee)
+    - DIVIDEND: positive (money in)  = +(quantity * price)
+    - Current portfolio value: positive on today's date
+
+    Returns annualized XIRR as a percentage, or None if it cannot converge.
+    """
+    txs = portfolio.transactions.select_related("instrument").order_by("date").all()
+    if not txs:
+        return None
+
+    cash_flows: list[tuple[date, float]] = []
+
+    for tx in txs:
+        amount: float
+        if tx.type == TransactionType.BUY:
+            amount = -float(tx.quantity * tx.price + tx.fee)
+        elif tx.type == TransactionType.SELL:
+            amount = float(tx.quantity * tx.price - tx.fee)
+        elif tx.type == TransactionType.DIVIDEND:
+            amount = float(tx.quantity * tx.price)
+        else:
+            continue  # FEE and FX types are not direct cash flows for XIRR
+        cash_flows.append((tx.date, amount))
+
+    if not cash_flows:
+        return None
+
+    # Add current portfolio value as a terminal positive cash flow
+    holdings = portfolio.holdings.select_related("instrument").all()
+    current_value = 0.0
+    for h in holdings:
+        try:
+            price_result = service.get_current_price(h.instrument)
+            current_value += float(h.quantity * price_result.price)
+        except Exception:
+            current_value += float(h.quantity * h.avg_buy_price)
+
+    today = date.today()
+    if current_value > 0:
+        cash_flows.append((today, current_value))
+
+    # Sort by date
+    cash_flows.sort(key=lambda x: x[0])
+
+    # Check that we have at least one positive and one negative cash flow
+    has_positive = any(cf[1] > 0 for cf in cash_flows)
+    has_negative = any(cf[1] < 0 for cf in cash_flows)
+    if not (has_positive and has_negative):
+        return None
+
+    # Newton-Raphson with initial guess of 10%
+    rate = 0.1
+    for _ in range(max_iterations):
+        npv = _xirr_npv(rate, cash_flows)
+        deriv = _xirr_npv_deriv(rate, cash_flows)
+        if abs(deriv) < 1e-12:
+            return None  # derivative too small, cannot converge
+        new_rate = rate - npv / deriv
+        # Clamp to avoid divergence (rate > -100% is required)
+        if new_rate <= -1.0:
+            new_rate = (rate - 1.0) / 2.0
+        if abs(new_rate - rate) < tolerance:
+            try:
+                return (Decimal(str(new_rate)) * 100).quantize(Decimal("0.01"))
+            except InvalidOperation:
+                return None
+        rate = new_rate
+
+    return None  # did not converge
