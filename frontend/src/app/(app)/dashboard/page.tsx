@@ -75,14 +75,15 @@ export default function DashboardPage() {
   const { selected } = usePortfolio();
   const [createOpen, setCreateOpen] = useState(false);
   const [period, setPeriod] = useState<Period>("1Y");
+  const [benchmark] = useState<string>("sp500");
 
   const {
     data: summary,
     isLoading: summaryLoading,
     error: summaryError,
   } = useQuery({
-    queryKey: ["summary", selected?.id],
-    queryFn: () => getSummary(selected!.id),
+    queryKey: ["summary", selected?.id, benchmark],
+    queryFn: () => getSummary(selected!.id, benchmark !== "none" ? benchmark : undefined),
     enabled: !!selected,
   });
 
@@ -169,6 +170,12 @@ export default function DashboardPage() {
       ? (todayGL / parseFloat(series[series.length - 2].value)) * 100
       : null;
   const todayPositive = todayGL !== null ? todayGL >= 0 : true;
+
+  const benchmarkReturnPct = summary?.benchmark_return_pct
+    ? parseFloat(summary.benchmark_return_pct)
+    : null;
+  const alphaPct =
+    benchmarkReturnPct !== null ? returnPct - benchmarkReturnPct : null;
 
   const sinceLabel = formatSinceDate(summary?.first_transaction_date ?? null);
 
@@ -306,6 +313,17 @@ export default function DashboardPage() {
             </div>
             {sinceLabel && (
               <p className="text-xs text-muted-foreground mt-2">{sinceLabel}</p>
+            )}
+            {alphaPct !== null && (
+              <div className="mt-2 pt-2 border-t">
+                <p className={labelClasses}>Alpha vs S&P 500</p>
+                <p
+                  className={`text-sm font-semibold mt-0.5 ${colorClasses(alphaPct >= 0)}`}
+                >
+                  {alphaPct >= 0 ? "+" : ""}
+                  {alphaPct.toFixed(2)}%
+                </p>
+              </div>
             )}
             {(twrPct !== null || xirrPct !== null) && (
               <div className="border-t pt-2 mt-2 space-y-1">
