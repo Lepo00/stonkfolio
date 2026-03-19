@@ -215,3 +215,39 @@ export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
 }
+
+export interface DividendSummary {
+  total_dividends_12m: string;
+  total_dividends_all_time: string;
+  trailing_yield_pct: string;
+  monthly_average_12m: string;
+  dividend_holding_count: number;
+  total_holding_count: number;
+}
+
+export interface DividendMonthly {
+  month: string;
+  amount: string;
+}
+
+export interface DividendByInstrument {
+  instrument_name: string;
+  ticker: string;
+  total_12m: string;
+  pct_of_total: string;
+  payment_count_12m: number;
+}
+
+export interface DividendPayment {
+  date: string;
+  instrument_name: string;
+  ticker: string;
+  amount: string;
+}
+
+export interface DividendResponse {
+  summary: DividendSummary;
+  monthly_history: DividendMonthly[];
+  by_instrument: DividendByInstrument[];
+  recent_payments: DividendPayment[];
+}

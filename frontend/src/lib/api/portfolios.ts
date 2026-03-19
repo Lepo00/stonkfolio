@@ -2,7 +2,7 @@ import { apiClient } from "./client";
 import type {
   Portfolio, Holding, Transaction, PortfolioSummary,
   PerformanceSeries, AllocationItem, PaginatedResponse,
-  AdviceResponse, FullAdviceResponse,
+  AdviceResponse, FullAdviceResponse, DividendResponse,
 } from "@/types/api";
 
 export async function listPortfolios() {
@@ -50,4 +50,8 @@ export async function sendAdviceChat(portfolioId: number, message: string) {
     method: "POST",
     body: { message },
   });
+}
+
+export async function getDividends(portfolioId: number) {
+  return apiClient<DividendResponse>(`/portfolios/${portfolioId}/dividends/`);
 }
