@@ -135,6 +135,38 @@ class FullAdviceResponseSerializer(serializers.Serializer):
     disclaimer = serializers.CharField()
 
 
+class RiskMetricsSerializer(serializers.Serializer):
+    sharpe_ratio = serializers.FloatField(allow_null=True)
+    sortino_ratio = serializers.FloatField(allow_null=True)
+    beta = serializers.FloatField(allow_null=True)
+    alpha = serializers.FloatField(allow_null=True)
+    annualized_volatility = serializers.FloatField(allow_null=True)
+
+
+class CorrelationResponseSerializer(serializers.Serializer):
+    tickers = serializers.ListField(child=serializers.CharField())
+    matrix = serializers.ListField(child=serializers.ListField(child=serializers.FloatField()))
+    names = serializers.ListField(child=serializers.CharField())
+
+
+class RebalanceHoldingSerializer(serializers.Serializer):
+    ticker = serializers.CharField()
+    name = serializers.CharField()
+    current_weight = serializers.FloatField()
+    target_weight = serializers.FloatField()
+    drift = serializers.FloatField()
+    action = serializers.CharField()
+    amount_eur = serializers.CharField()
+
+
+class RebalanceResponseSerializer(serializers.Serializer):
+    strategy = serializers.CharField()
+    total_value = serializers.CharField()
+    holdings = RebalanceHoldingSerializer(many=True)
+    max_drift = serializers.FloatField()
+    rebalance_needed = serializers.BooleanField()
+
+
 class ChatMessageSerializer(serializers.Serializer):
     role = serializers.CharField()
     content = serializers.CharField()

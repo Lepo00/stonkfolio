@@ -1,8 +1,10 @@
+import itertools
 import logging
 from collections import defaultdict
 from datetime import date, timedelta
 from decimal import Decimal
 
+import pandas as pd
 from django.core.cache import cache
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status, viewsets
@@ -19,13 +21,17 @@ from .advice.engine import FULL_ADVICE_DISCLAIMER
 from .advice.recommendations import RecommendationEngine
 from .models import Holding, Portfolio, Transaction, TransactionType
 from .returns import _build_daily_portfolio_values, calculate_twr, calculate_xirr
+from .risk_metrics import calculate_risk_metrics
 from .serializers import (
     AdviceResponseSerializer,
     ChatRequestSerializer,
     ChatResponseSerializer,
+    CorrelationResponseSerializer,
     FullAdviceResponseSerializer,
     HoldingSerializer,
     PortfolioSerializer,
+    RebalanceResponseSerializer,
+    RiskMetricsSerializer,
     TransactionSerializer,
 )
 
@@ -116,6 +122,10 @@ class PortfolioSummaryView(APIView):
                 if start_val > 0:
                     benchmark_return_pct = f"{((end_val - start_val) / start_val * 100):.2f}"
 
+        # Risk metrics (cached for 24 hours inside calculate_risk_metrics)
+        risk_metrics_raw = calculate_risk_metrics(portfolio, service)
+        risk_metrics_serializer = RiskMetricsSerializer(risk_metrics_raw)
+
         return Response(
             {
                 "total_value": f"{total_value:.2f}",
@@ -126,6 +136,7 @@ class PortfolioSummaryView(APIView):
                 "twr_return_pct": f"{twr:.2f}" if twr is not None else None,
                 "xirr_return_pct": f"{xirr_val:.2f}" if xirr_val is not None else None,
                 "benchmark_return_pct": benchmark_return_pct,
+                "risk_metrics": risk_metrics_serializer.data,
             }
         )
 
@@ -416,3 +427,212 @@ class PortfolioAdviceChatView(APIView):
 
         chat_response = handle_chat_message(message, ctx, items, recs)
         return Response(ChatResponseSerializer(chat_response).data)
+
+
+class PortfolioCorrelationView(APIView):
+    """Pairwise correlation heatmap data for portfolio holdings."""
+
+    MAX_HOLDINGS = 15
+
+    def get(self, request, portfolio_id):
+        portfolio = get_object_or_404(Portfolio, id=portfolio_id, user=request.user)
+
+        # Check cache first (24 hours)
+        cache_key = f"correlation:{portfolio_id}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+
+        holdings = list(
+            portfolio.holdings.select_related("instrument")
+            .exclude(instrument__ticker__isnull=True)
+            .exclude(instrument__ticker="")
+            .all()
+        )
+
+        if len(holdings) < 2:
+            empty = {"tickers": [], "matrix": [], "names": []}
+            return Response(empty)
+
+        # If more than MAX_HOLDINGS, keep the largest by value (qty * avg_buy_price)
+        if len(holdings) > self.MAX_HOLDINGS:
+            holdings.sort(key=lambda h: h.quantity * h.avg_buy_price, reverse=True)
+            holdings = holdings[: self.MAX_HOLDINGS]
+
+        service = MarketDataService()
+
+        # Fetch OHLCV and compute daily returns for each holding
+        returns_map: dict[int, pd.Series] = {}
+        holding_info: dict[int, dict] = {}  # instrument_id -> {ticker, name}
+
+        for h in holdings:
+            try:
+                df = service.get_ohlcv(h.instrument, "3mo", "1d")
+                if df is None or df.empty:
+                    continue
+                returns = df["Close"].pct_change().dropna()
+                if len(returns) >= 20:
+                    returns_map[h.instrument_id] = returns
+                    holding_info[h.instrument_id] = {
+                        "ticker": h.instrument.ticker,
+                        "name": h.instrument.name,
+                    }
+            except Exception:
+                logger.debug("Failed to fetch OHLCV for %s", h.instrument.ticker)
+
+        if len(returns_map) < 2:
+            empty = {"tickers": [], "matrix": [], "names": []}
+            return Response(empty)
+
+        # Build ordered list of instrument IDs
+        ids = list(returns_map.keys())
+        n = len(ids)
+        id_to_idx = {inst_id: i for i, inst_id in enumerate(ids)}
+
+        # Initialize matrix with 1.0 on diagonal
+        matrix = [[0.0] * n for _ in range(n)]
+        for i in range(n):
+            matrix[i][i] = 1.0
+
+        # Compute pairwise correlations
+        for id_a, id_b in itertools.combinations(ids, 2):
+            try:
+                ret_a = returns_map[id_a]
+                ret_b = returns_map[id_b]
+                aligned = pd.concat([ret_a, ret_b], axis=1, join="inner")
+                if len(aligned) < 20:
+                    continue
+                corr = float(aligned.iloc[:, 0].corr(aligned.iloc[:, 1]))
+                if pd.isna(corr):
+                    corr = 0.0
+                i, j = id_to_idx[id_a], id_to_idx[id_b]
+                matrix[i][j] = round(corr, 4)
+                matrix[j][i] = round(corr, 4)
+            except Exception:
+                continue
+
+        tickers = [holding_info[inst_id]["ticker"] for inst_id in ids]
+        names = [holding_info[inst_id]["name"] for inst_id in ids]
+
+        result = {"tickers": tickers, "matrix": matrix, "names": names}
+
+        serializer = CorrelationResponseSerializer(result)
+        cache.set(cache_key, serializer.data, 24 * 60 * 60)
+
+        return Response(serializer.data)
+
+
+class PortfolioRebalanceView(APIView):
+    """Rebalancing tool: compute drift and suggested trades for a given strategy."""
+
+    DRIFT_THRESHOLD = 2.0  # percentage points: within +/-2% is considered balanced
+
+    def get(self, request, portfolio_id):
+        portfolio = get_object_or_404(Portfolio, id=portfolio_id, user=request.user)
+        strategy = request.query_params.get("strategy", "equal_weight")
+
+        if strategy not in ("equal_weight",):
+            return Response(
+                {"error": "Unsupported strategy. Supported: equal_weight"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Check cache
+        cache_key = f"rebalance:{portfolio_id}:{strategy}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+
+        holdings = list(portfolio.holdings.select_related("instrument").all())
+
+        if not holdings:
+            empty = {
+                "strategy": strategy,
+                "total_value": "0.00",
+                "holdings": [],
+                "max_drift": 0.0,
+                "rebalance_needed": False,
+            }
+            return Response(empty)
+
+        service = MarketDataService()
+
+        # Compute market value per holding
+        holding_data = []
+        total_value = Decimal("0")
+
+        for h in holdings:
+            try:
+                price_result = service.get_current_price(h.instrument)
+                market_value = h.quantity * price_result.price
+            except Exception:
+                market_value = h.quantity * h.avg_buy_price
+
+            total_value += market_value
+            holding_data.append(
+                {
+                    "ticker": h.instrument.ticker or h.instrument.isin,
+                    "name": h.instrument.name,
+                    "market_value": market_value,
+                }
+            )
+
+        if total_value <= 0:
+            empty = {
+                "strategy": strategy,
+                "total_value": "0.00",
+                "holdings": [],
+                "max_drift": 0.0,
+                "rebalance_needed": False,
+            }
+            return Response(empty)
+
+        # Compute target weights
+        holding_count = len(holding_data)
+        target_weight = Decimal(100) / Decimal(holding_count)
+
+        result_holdings = []
+        for hd in holding_data:
+            current_weight = float(hd["market_value"] / total_value * 100)
+            tw = float(target_weight)
+            drift = round(current_weight - tw, 2)
+
+            if drift > self.DRIFT_THRESHOLD:
+                action = "SELL"
+            elif drift < -self.DRIFT_THRESHOLD:
+                action = "BUY"
+            else:
+                action = "HOLD"
+
+            amount_eur = abs(drift) / 100 * float(total_value)
+
+            result_holdings.append(
+                {
+                    "ticker": hd["ticker"],
+                    "name": hd["name"],
+                    "current_weight": round(current_weight, 2),
+                    "target_weight": round(tw, 2),
+                    "drift": drift,
+                    "action": action,
+                    "amount_eur": f"{amount_eur:.2f}",
+                }
+            )
+
+        # Sort by abs(drift) descending
+        result_holdings.sort(key=lambda x: abs(x["drift"]), reverse=True)
+
+        max_drift = max(abs(h["drift"]) for h in result_holdings)
+        rebalance_needed = max_drift > self.DRIFT_THRESHOLD
+
+        result = {
+            "strategy": strategy,
+            "total_value": f"{total_value:.2f}",
+            "holdings": result_holdings,
+            "max_drift": round(max_drift, 2),
+            "rebalance_needed": rebalance_needed,
+        }
+
+        serializer = RebalanceResponseSerializer(result)
+        cache.set(cache_key, serializer.data, 15 * 60)
+
+        return Response(serializer.data)
