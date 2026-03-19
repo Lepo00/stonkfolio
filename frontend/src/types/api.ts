@@ -152,3 +152,66 @@ export interface AdviceResponse {
   has_pending_analysis: boolean;
   disclaimer: string;
 }
+
+export interface SuggestedETF {
+  name: string;
+  ticker: string;
+  isin: string;
+  provider: string;
+  ter: string;
+  index_tracked: string;
+  why: string;
+}
+
+export interface Recommendation {
+  category: string;
+  title: string;
+  rationale: string;
+  suggested_etfs: SuggestedETF[];
+  impact: string;
+  confidence: "high" | "medium" | "low";
+  priority: number;
+}
+
+export interface HealthScore {
+  overall_score: number;
+  summary: string;
+  sub_scores: Record<string, { score: number; weight: number; item_count: number }>;
+}
+
+export interface TopAction {
+  action: string;
+  rationale: string;
+  impact: string;
+  urgency: "urgent" | "recommended" | "consider";
+  related_rule_id: string;
+  related_holdings: string[];
+}
+
+export interface Scenario {
+  title: string;
+  description: string;
+  before: {
+    allocation: Record<string, number>;
+    metrics: Record<string, number>;
+  };
+  after: {
+    allocation: Record<string, number>;
+    metrics: Record<string, number>;
+  };
+}
+
+export interface FullAdviceResponse {
+  health_score: HealthScore;
+  top_actions: { actions: TopAction[] };
+  recommendations: { recommendations: Recommendation[] };
+  scenarios: { scenarios: Scenario[] };
+  advice_items: AdviceItem[];
+  has_pending_analysis: boolean;
+  disclaimer: string;
+}
+
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}

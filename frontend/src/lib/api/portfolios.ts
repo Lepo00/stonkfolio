@@ -2,7 +2,7 @@ import { apiClient } from "./client";
 import type {
   Portfolio, Holding, Transaction, PortfolioSummary,
   PerformanceSeries, AllocationItem, PaginatedResponse,
-  AdviceResponse,
+  AdviceResponse, FullAdviceResponse,
 } from "@/types/api";
 
 export async function listPortfolios() {
@@ -39,4 +39,15 @@ export async function getTransactions(portfolioId: number) {
 
 export async function getPortfolioAdvice(portfolioId: number) {
   return apiClient<AdviceResponse>(`/portfolios/${portfolioId}/advice/`);
+}
+
+export async function getFullAdvice(portfolioId: number) {
+  return apiClient<FullAdviceResponse>(`/portfolios/${portfolioId}/advice/full/`);
+}
+
+export async function sendAdviceChat(portfolioId: number, message: string) {
+  return apiClient<{ reply: string }>(`/portfolios/${portfolioId}/advice/chat/`, {
+    method: "POST",
+    body: { message },
+  });
 }

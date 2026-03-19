@@ -10,6 +10,7 @@ import {
   PieChart,
   ArrowLeftRight,
   Upload,
+  Sparkles,
   Settings,
   LogOut,
   Sun,
@@ -42,6 +43,7 @@ const navItems = [
   { href: "/allocation", label: "Allocation", icon: PieChart },
   { href: "/transactions", label: "Transactions", icon: ArrowLeftRight },
   { href: "/import", label: "Import", icon: Upload },
+  { href: "/advice", label: "AI Advice", icon: Sparkles },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
