@@ -3,8 +3,10 @@ from rest_framework.routers import DefaultRouter
 
 from .views import (
     HoldingListView,
+    PortfolioAdviceChatView,
     PortfolioAdviceView,
     PortfolioAllocationView,
+    PortfolioFullAdviceView,
     PortfolioPerformanceView,
     PortfolioSummaryView,
     PortfolioViewSet,
@@ -33,4 +35,14 @@ urlpatterns = [
     ),
     path("portfolios/<int:portfolio_id>/allocation/", PortfolioAllocationView.as_view(), name="portfolio-allocation"),
     path("portfolios/<int:portfolio_id>/advice/", PortfolioAdviceView.as_view(), name="portfolio-advice"),
+    path(
+        "portfolios/<int:portfolio_id>/advice/full/",
+        PortfolioFullAdviceView.as_view(),
+        name="portfolio-advice-full",
+    ),
+    path(
+        "portfolios/<int:portfolio_id>/advice/chat/",
+        PortfolioAdviceChatView.as_view(),
+        name="portfolio-advice-chat",
+    ),
 ]

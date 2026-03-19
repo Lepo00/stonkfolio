@@ -10,7 +10,11 @@ from apps.portfolios.models import Portfolio
 
 from .context import DISCLAIMER, build_advice_context
 from .dedup import PRIORITY_ORDER, deduplicate
-from .models import AdviceContext, AdviceItem, AdviceResponse
+from .health_score import compute_health_score
+from .models import AdviceContext, AdviceItem, AdviceResponse, FullAdviceResponse
+from .recommendations import RecommendationEngine
+from .scenarios import generate_scenarios
+from .top_actions import derive_top_actions
 
 # Graceful imports for rule modules (Task B creates these)
 try:
@@ -27,7 +31,20 @@ logger = logging.getLogger(__name__)
 
 FAST_CACHE_TTL = 15 * 60  # 15 minutes
 SLOW_CACHE_TTL = 24 * 60 * 60  # 24 hours
+FULL_CACHE_TTL = 15 * 60  # 15 minutes (matches fast tier)
 MAX_ITEMS = 10
+
+FULL_ADVICE_DISCLAIMER = (
+    "Important: The information on this page is generated automatically for "
+    "educational and informational purposes only. It does not constitute "
+    "financial advice, an investment recommendation, or a solicitation to buy "
+    "or sell any financial instrument. Past performance is not indicative of "
+    "future results. The ETFs mentioned are examples only and not endorsements "
+    "of specific products. Always conduct your own research and consult a "
+    "qualified, licensed financial advisor before making any investment "
+    "decisions. The authors of this application accept no liability for any "
+    "financial loss arising from the use of this information."
+)
 
 
 class AdviceEngine:
@@ -64,6 +81,48 @@ class AdviceEngine:
             has_pending_analysis=has_pending,
             disclaimer=DISCLAIMER,
         )
+
+    def evaluate_full(self) -> FullAdviceResponse:
+        """Full advice evaluation: health score, top actions, recommendations,
+        scenarios, and all advice items."""
+        cache_key = f"advice:full:{self.portfolio.id}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        ctx = build_advice_context(self.portfolio, self.service)
+
+        fast_items = self._get_fast_results(ctx)
+        slow_items = self._get_slow_results(ctx)
+
+        has_pending = slow_items is None
+        if has_pending:
+            self._trigger_slow_computation(ctx)
+
+        all_items = fast_items + (slow_items or [])
+        all_items = deduplicate(all_items)
+
+        # Compute all sections
+        health_score = compute_health_score(all_items)
+        top_actions = derive_top_actions(all_items)
+        recommendations = RecommendationEngine(ctx, all_items).evaluate()
+        scenarios = generate_scenarios(ctx, recommendations)
+
+        # Sort and limit advice items for the response
+        display_items = self._sort_and_limit(list(all_items))
+
+        result = FullAdviceResponse(
+            health_score=health_score,
+            top_actions=top_actions,
+            recommendations=recommendations,
+            scenarios=scenarios,
+            advice_items=display_items,
+            has_pending_analysis=has_pending,
+            disclaimer=FULL_ADVICE_DISCLAIMER,
+        )
+
+        cache.set(cache_key, result, FULL_CACHE_TTL)
+        return result
 
     # ── Fast tier ────────────────────────────────────────────
 

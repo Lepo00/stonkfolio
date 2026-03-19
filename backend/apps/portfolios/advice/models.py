@@ -74,3 +74,78 @@ class AdviceResponse:
     items: list[AdviceItem]
     has_pending_analysis: bool
     disclaimer: str
+
+
+# ── New dataclasses for AI Advice page ────────────────────
+
+
+@dataclass
+class SuggestedETF:
+    name: str
+    ticker: str
+    isin: str
+    provider: str
+    ter: str
+    index_tracked: str
+    why: str
+
+
+@dataclass
+class Recommendation:
+    category: str  # sector_fill | geographic | asset_class | income | defensive | low_correlation
+    title: str
+    rationale: str
+    suggested_etfs: list[SuggestedETF]
+    impact: str
+    confidence: str  # high | medium | low
+    priority: int  # 1 = most important
+
+
+@dataclass
+class HealthScore:
+    overall_score: int
+    summary: str
+    sub_scores: dict  # {category: {"score": int, "weight": int, "item_count": int}}
+
+
+@dataclass
+class TopAction:
+    action: str
+    rationale: str
+    impact: str
+    urgency: str  # urgent | recommended | consider
+    related_rule_id: str
+    related_holdings: list[str] = field(default_factory=list)
+
+
+@dataclass
+class Scenario:
+    title: str
+    description: str
+    before_allocation: dict[str, float]
+    after_allocation: dict[str, float]
+    metrics_before: dict
+    metrics_after: dict
+
+
+@dataclass
+class FullAdviceResponse:
+    health_score: HealthScore
+    top_actions: list[TopAction]
+    recommendations: list[Recommendation]
+    scenarios: list[Scenario]
+    advice_items: list[AdviceItem]
+    has_pending_analysis: bool
+    disclaimer: str
+
+
+@dataclass
+class ChatMessage:
+    role: str  # "user" or "assistant"
+    content: str
+
+
+@dataclass
+class ChatResponse:
+    messages: list[ChatMessage]
+    context_summary: str

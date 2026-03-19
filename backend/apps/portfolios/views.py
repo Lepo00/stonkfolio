@@ -10,9 +10,20 @@ from rest_framework.views import APIView
 from apps.market_data.services import MarketDataService
 
 from .advice import AdviceEngine
-from .advice.context import DISCLAIMER
+from .advice.chat import handle_chat_message
+from .advice.context import DISCLAIMER, build_advice_context
+from .advice.engine import FULL_ADVICE_DISCLAIMER
+from .advice.recommendations import RecommendationEngine
 from .models import Holding, Portfolio, Transaction, TransactionType
-from .serializers import AdviceResponseSerializer, HoldingSerializer, PortfolioSerializer, TransactionSerializer
+from .serializers import (
+    AdviceResponseSerializer,
+    ChatRequestSerializer,
+    ChatResponseSerializer,
+    FullAdviceResponseSerializer,
+    HoldingSerializer,
+    PortfolioSerializer,
+    TransactionSerializer,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -217,3 +228,58 @@ class PortfolioAdviceView(APIView):
         response = engine.evaluate()
 
         return Response(AdviceResponseSerializer(response).data)
+
+
+class PortfolioFullAdviceView(APIView):
+    """Full AI Advice page: health score, top actions, recommendations, scenarios."""
+
+    def get(self, request, portfolio_id):
+        portfolio = get_object_or_404(Portfolio, id=portfolio_id, user=request.user)
+
+        if not portfolio.holdings.exists():
+            return Response(
+                {
+                    "health_score": {
+                        "overall_score": 0,
+                        "summary": "Add holdings to get portfolio advice.",
+                        "sub_scores": {},
+                    },
+                    "top_actions": [],
+                    "recommendations": [],
+                    "scenarios": [],
+                    "advice_items": [],
+                    "has_pending_analysis": False,
+                    "disclaimer": FULL_ADVICE_DISCLAIMER,
+                }
+            )
+
+        engine = AdviceEngine(portfolio)
+        response = engine.evaluate_full()
+
+        return Response(FullAdviceResponseSerializer(response).data)
+
+
+class PortfolioAdviceChatView(APIView):
+    """Portfolio-aware chat endpoint for Q&A about holdings."""
+
+    def post(self, request, portfolio_id):
+        portfolio = get_object_or_404(Portfolio, id=portfolio_id, user=request.user)
+
+        serializer = ChatRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        message = serializer.validated_data["message"]
+
+        service = MarketDataService()
+        ctx = build_advice_context(portfolio, service)
+
+        # Get advice items for context
+        engine = AdviceEngine(portfolio, service)
+        advice_response = engine.evaluate()
+        items = advice_response.items
+
+        # Get recommendations for "what to buy" questions
+        recs = RecommendationEngine(ctx, items).evaluate()
+
+        chat_response = handle_chat_message(message, ctx, items, recs)
+
+        return Response(ChatResponseSerializer(chat_response).data)
