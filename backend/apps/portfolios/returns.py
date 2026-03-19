@@ -127,11 +127,18 @@ def calculate_twr(
         start_date = boundaries[i]
         end_date = boundaries[i + 1]
 
-        # For cash flow dates, use the portfolio value BEFORE the cash flow
-        # (which is the previous day's value). On the start boundary, use the
-        # value on that date as-is.
+        # On a cash flow date the portfolio value already includes the new
+        # shares.  We need the value just *before* that cash flow, which is
+        # the previous trading day's value.
         start_val = daily_values.get(start_date, Decimal("0"))
-        end_val = daily_values.get(end_date, Decimal("0"))
+
+        # For the ending value: if end_date is a cash flow boundary, use the
+        # day before it (the last pre-cash-flow value).
+        if end_date in cash_flow_dates:
+            prev_dates = [d for d in sorted_dates if d < end_date]
+            end_val = daily_values[prev_dates[-1]] if prev_dates else daily_values.get(end_date, Decimal("0"))
+        else:
+            end_val = daily_values.get(end_date, Decimal("0"))
 
         if start_val <= 0:
             continue
@@ -247,13 +254,15 @@ def calculate_xirr(
         if abs(deriv) < 1e-12:
             return None  # derivative too small, cannot converge
         new_rate = rate - npv / deriv
-        # Clamp to avoid divergence (rate > -100% is required)
-        if new_rate <= -1.0:
-            new_rate = (rate - 1.0) / 2.0
+        # Clamp to avoid divergence
+        if new_rate > 100.0:  # 10,000% — clearly unreasonable
+            new_rate = (rate + 100.0) / 2.0  # bisect toward upper bound
+        if new_rate < -0.99:
+            new_rate = (rate - 0.99) / 2.0  # bisect toward lower bound
         if abs(new_rate - rate) < tolerance:
             try:
                 return (Decimal(str(new_rate)) * 100).quantize(Decimal("0.01"))
-            except InvalidOperation:
+            except (InvalidOperation, OverflowError):
                 return None
         rate = new_rate
 

@@ -3,6 +3,7 @@ from decimal import Decimal
 from unittest.mock import patch
 
 import pytest
+from django.core.cache import cache
 from rest_framework import status
 from rest_framework.test import APIClient
 
@@ -15,6 +16,7 @@ from apps.users.models import User
 @pytest.mark.django_db
 class TestPortfolioAnalytics:
     def setup_method(self):
+        cache.clear()
         self.user = User.objects.create_user(username="test", password="pass12345")
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)

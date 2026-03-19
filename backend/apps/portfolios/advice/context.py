@@ -103,11 +103,13 @@ def build_advice_context(
             asset_type_weights[h.asset_type] += h.weight_pct
 
     # ── Transactions ─────────────────────────────────────────
+    # list() forces queryset evaluation so the result is safe for background threads
     all_transactions = list(portfolio.transactions.select_related("instrument").order_by("date"))
 
     today = date.today()
     one_year_ago = today - timedelta(days=365)
 
+    # Already a materialized list (filtered from all_transactions); safe for threads
     dividend_txs_12m = [
         tx for tx in all_transactions if tx.type == TransactionType.DIVIDEND and tx.date >= one_year_ago
     ]

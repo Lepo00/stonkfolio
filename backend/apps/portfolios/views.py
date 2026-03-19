@@ -3,9 +3,11 @@ from collections import defaultdict
 from datetime import date, timedelta
 from decimal import Decimal
 
+from django.core.cache import cache
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status, viewsets
 from rest_framework.response import Response
+from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 
 from apps.market_data.services import BENCHMARK_MAP, MarketDataService
@@ -16,7 +18,7 @@ from .advice.context import DISCLAIMER, build_advice_context
 from .advice.engine import FULL_ADVICE_DISCLAIMER
 from .advice.recommendations import RecommendationEngine
 from .models import Holding, Portfolio, Transaction, TransactionType
-from .returns import calculate_twr, calculate_xirr
+from .returns import _build_daily_portfolio_values, calculate_twr, calculate_xirr
 from .serializers import (
     AdviceResponseSerializer,
     ChatRequestSerializer,
@@ -88,9 +90,19 @@ class PortfolioSummaryView(APIView):
 
         first_tx = portfolio.transactions.order_by("date").values_list("date", flat=True).first()
 
-        # Calculate advanced return metrics
-        twr = calculate_twr(portfolio, service)
-        xirr = calculate_xirr(portfolio, service)
+        # Calculate advanced return metrics (cached for 15 minutes)
+        twr_cache_key = f"twr:{portfolio_id}"
+        xirr_cache_key = f"xirr:{portfolio_id}"
+
+        twr = cache.get(twr_cache_key)
+        if twr is None:
+            twr = calculate_twr(portfolio, service)
+            cache.set(twr_cache_key, twr, 15 * 60)
+
+        xirr_val = cache.get(xirr_cache_key)
+        if xirr_val is None:
+            xirr_val = calculate_xirr(portfolio, service)
+            cache.set(xirr_cache_key, xirr_val, 15 * 60)
 
         # Benchmark return
         benchmark_key = request.query_params.get("benchmark")
@@ -112,7 +124,7 @@ class PortfolioSummaryView(APIView):
                 "total_return_pct": f"{((total_value - total_cost) / total_cost * 100):.2f}" if total_cost else "0.00",
                 "first_transaction_date": str(first_tx) if first_tx else None,
                 "twr_return_pct": f"{twr:.2f}" if twr is not None else None,
-                "xirr_return_pct": f"{xirr:.2f}" if xirr is not None else None,
+                "xirr_return_pct": f"{xirr_val:.2f}" if xirr_val is not None else None,
                 "benchmark_return_pct": benchmark_return_pct,
             }
         )
@@ -142,55 +154,7 @@ class PortfolioPerformanceView(APIView):
 
         end = date.today()
 
-        txs = portfolio.transactions.select_related("instrument").order_by("date").all()
-
-        instrument_changes = {}
-        for tx in txs:
-            if not tx.instrument.ticker:
-                continue
-            changes = instrument_changes.setdefault(tx.instrument_id, {"instrument": tx.instrument, "events": []})
-            if tx.type == TransactionType.BUY:
-                changes["events"].append((tx.date, tx.quantity))
-            elif tx.type == TransactionType.SELL:
-                changes["events"].append((tx.date, -tx.quantity))
-
-        # Build per-instrument daily values
-        inst_series = {}  # {instrument_id: {date: value}}
-        for inst_data in instrument_changes.values():
-            instrument = inst_data["instrument"]
-            events = inst_data["events"]
-            try:
-                prices = service.get_historical_prices(instrument, start, end)
-            except Exception:
-                continue
-
-            qty = Decimal("0")
-            event_idx = 0
-            daily = {}
-            for pp in prices:
-                while event_idx < len(events) and events[event_idx][0] <= pp.date:
-                    qty += events[event_idx][1]
-                    event_idx += 1
-                if qty > 0:
-                    daily[pp.date] = qty * pp.price
-
-            if daily:
-                inst_series[instrument.id] = daily
-
-        # Build unified date range and carry forward missing values
-        all_dates = sorted({d for daily in inst_series.values() for d in daily})
-        series_map = {}
-        for d in all_dates:
-            total = Decimal("0")
-            for inst_id, daily in inst_series.items():
-                if d in daily:
-                    total += daily[d]
-                else:
-                    # Carry forward: find the most recent date before d
-                    prev_dates = [pd for pd in daily if pd < d]
-                    if prev_dates:
-                        total += daily[max(prev_dates)]
-            series_map[d] = total
+        series_map = _build_daily_portfolio_values(portfolio, service, start, end)
 
         series = [{"date": str(d), "value": f"{v:.2f}"} for d, v in sorted(series_map.items())]
 
@@ -414,8 +378,14 @@ class PortfolioFullAdviceView(APIView):
         return Response(FullAdviceResponseSerializer(response).data)
 
 
+class ChatRateThrottle(UserRateThrottle):
+    rate = "30/hour"
+
+
 class PortfolioAdviceChatView(APIView):
     """Portfolio-aware chat endpoint for Q&A about holdings."""
+
+    throttle_classes = [ChatRateThrottle]
 
     def post(self, request, portfolio_id):
         portfolio = get_object_or_404(Portfolio, id=portfolio_id, user=request.user)
@@ -424,17 +394,25 @@ class PortfolioAdviceChatView(APIView):
         serializer.is_valid(raise_exception=True)
         message = serializer.validated_data["message"]
 
-        service = MarketDataService()
-        ctx = build_advice_context(portfolio, service)
-
-        # Get advice items for context
-        engine = AdviceEngine(portfolio, service)
-        advice_response = engine.evaluate()
+        # Use cached engine results instead of recomputing
+        engine = AdviceEngine(portfolio)
+        advice_response = engine.evaluate()  # This already uses 15-min cache internally
         items = advice_response.items
 
-        # Get recommendations for "what to buy" questions
-        recs = RecommendationEngine(ctx, items).evaluate()
+        # Build context only if not cached
+        ctx_cache_key = f"advice:ctx:{portfolio_id}"
+        ctx = cache.get(ctx_cache_key)
+        if ctx is None:
+            service = MarketDataService()
+            ctx = build_advice_context(portfolio, service)
+            cache.set(ctx_cache_key, ctx, 15 * 60)
+
+        # Recommendations are cached by the engine too
+        rec_cache_key = f"advice:recs:{portfolio_id}"
+        recs = cache.get(rec_cache_key)
+        if recs is None:
+            recs = RecommendationEngine(ctx, items).evaluate()
+            cache.set(rec_cache_key, recs, 15 * 60)
 
         chat_response = handle_chat_message(message, ctx, items, recs)
-
         return Response(ChatResponseSerializer(chat_response).data)
