@@ -49,10 +49,13 @@ export interface PortfolioSummary {
   first_transaction_date: string | null;
   twr_return_pct: string | null;
   xirr_return_pct: string | null;
+  benchmark_return_pct: string | null;
 }
 
 export interface PerformanceSeries {
   series: { date: string; value: string }[];
+  benchmark_series: { date: string; value: string }[] | null;
+  benchmark_name: string | null;
 }
 
 export interface AllocationItem {

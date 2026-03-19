@@ -21,12 +21,15 @@ export async function getHoldings(portfolioId: number) {
   return apiClient<PaginatedResponse<Holding>>(`/portfolios/${portfolioId}/holdings/`);
 }
 
-export async function getSummary(portfolioId: number) {
-  return apiClient<PortfolioSummary>(`/portfolios/${portfolioId}/summary/`);
+export async function getSummary(portfolioId: number, benchmark?: string) {
+  const params = benchmark ? `?benchmark=${benchmark}` : "";
+  return apiClient<PortfolioSummary>(`/portfolios/${portfolioId}/summary/${params}`);
 }
 
-export async function getPerformance(portfolioId: number, period: string) {
-  return apiClient<PerformanceSeries>(`/portfolios/${portfolioId}/performance/?period=${period}`);
+export async function getPerformance(portfolioId: number, period: string, benchmark?: string) {
+  const params = new URLSearchParams({ period });
+  if (benchmark) params.set("benchmark", benchmark);
+  return apiClient<PerformanceSeries>(`/portfolios/${portfolioId}/performance/?${params.toString()}`);
 }
 
 export async function getAllocation(portfolioId: number, groupBy: string) {
