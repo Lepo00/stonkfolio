@@ -1,0 +1,153 @@
+from __future__ import annotations
+
+import logging
+from datetime import date
+from decimal import Decimal, InvalidOperation
+
+from apps.market_data.services import MarketDataService
+
+from .models import Portfolio, TransactionType
+
+logger = logging.getLogger(__name__)
+
+
+def _build_daily_portfolio_values(
+    portfolio: Portfolio,
+    service: MarketDataService,
+    start: date,
+    end: date,
+) -> dict[date, Decimal]:
+    """Replay transactions against historical prices to build {date: total_value}.
+
+    This is the same logic used by PortfolioPerformanceView, extracted for reuse.
+    """
+    txs = portfolio.transactions.select_related("instrument").order_by("date").all()
+
+    instrument_changes: dict[int, dict] = {}
+    for tx in txs:
+        if not tx.instrument.ticker:
+            continue
+        changes = instrument_changes.setdefault(
+            tx.instrument_id,
+            {"instrument": tx.instrument, "events": []},
+        )
+        if tx.type == TransactionType.BUY:
+            changes["events"].append((tx.date, tx.quantity))
+        elif tx.type == TransactionType.SELL:
+            changes["events"].append((tx.date, -tx.quantity))
+
+    inst_series: dict[int, dict[date, Decimal]] = {}
+    for inst_data in instrument_changes.values():
+        instrument = inst_data["instrument"]
+        events = inst_data["events"]
+        try:
+            prices = service.get_historical_prices(instrument, start, end)
+        except Exception:
+            continue
+
+        qty = Decimal("0")
+        event_idx = 0
+        daily: dict[date, Decimal] = {}
+        for pp in prices:
+            while event_idx < len(events) and events[event_idx][0] <= pp.date:
+                qty += events[event_idx][1]
+                event_idx += 1
+            if qty > 0:
+                daily[pp.date] = qty * pp.price
+        if daily:
+            inst_series[instrument.id] = daily
+
+    # Merge per-instrument series into a single portfolio series, carry-forward missing
+    all_dates = sorted({d for daily in inst_series.values() for d in daily})
+    result: dict[date, Decimal] = {}
+    for d in all_dates:
+        total = Decimal("0")
+        for daily in inst_series.values():
+            if d in daily:
+                total += daily[d]
+            else:
+                prev_dates = [pd for pd in daily if pd < d]
+                if prev_dates:
+                    total += daily[max(prev_dates)]
+        result[d] = total
+    return result
+
+
+def _get_cash_flow_dates(portfolio: Portfolio) -> list[date]:
+    """Return sorted distinct dates where BUY or SELL transactions occurred."""
+    txs = (
+        portfolio.transactions.filter(
+            type__in=[TransactionType.BUY, TransactionType.SELL],
+        )
+        .order_by("date")
+        .values_list("date", flat=True)
+        .distinct()
+    )
+    return list(txs)
+
+
+def calculate_twr(
+    portfolio: Portfolio,
+    service: MarketDataService,
+) -> Decimal | None:
+    """Calculate annualized Time-Weighted Return.
+
+    TWR eliminates the effect of cash flows by chaining sub-period returns
+    at each cash flow event (BUY/SELL date).
+
+    Returns annualized TWR as a percentage, or None if it cannot be calculated.
+    """
+    first_tx = portfolio.transactions.order_by("date").first()
+    if not first_tx:
+        return None
+
+    start = first_tx.date
+    end = date.today()
+    if start >= end:
+        return None
+
+    daily_values = _build_daily_portfolio_values(portfolio, service, start, end)
+    if len(daily_values) < 2:
+        return None
+
+    sorted_dates = sorted(daily_values.keys())
+    cash_flow_dates = set(_get_cash_flow_dates(portfolio))
+
+    # Build sub-period boundaries: start + each cash flow date + end
+    boundaries = [sorted_dates[0]]
+    for d in sorted_dates[1:]:
+        if d in cash_flow_dates:
+            boundaries.append(d)
+    if boundaries[-1] != sorted_dates[-1]:
+        boundaries.append(sorted_dates[-1])
+
+    # Chain sub-period returns
+    cumulative = Decimal("1")
+    for i in range(len(boundaries) - 1):
+        start_date = boundaries[i]
+        end_date = boundaries[i + 1]
+
+        # For cash flow dates, use the portfolio value BEFORE the cash flow
+        # (which is the previous day's value). On the start boundary, use the
+        # value on that date as-is.
+        start_val = daily_values.get(start_date, Decimal("0"))
+        end_val = daily_values.get(end_date, Decimal("0"))
+
+        if start_val <= 0:
+            continue
+
+        sub_return = end_val / start_val
+        cumulative *= sub_return
+
+    twr = cumulative - 1
+    days = (sorted_dates[-1] - sorted_dates[0]).days
+    if days <= 0:
+        return None
+
+    try:
+        # Annualize: (1 + twr) ^ (365/days) - 1
+        exponent = Decimal("365") / Decimal(str(days))
+        annualized = (Decimal("1") + twr) ** exponent - 1
+        return (annualized * 100).quantize(Decimal("0.01"))
+    except (InvalidOperation, OverflowError):
+        return None

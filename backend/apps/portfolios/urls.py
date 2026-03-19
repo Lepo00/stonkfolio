@@ -6,6 +6,7 @@ from .views import (
     PortfolioAdviceChatView,
     PortfolioAdviceView,
     PortfolioAllocationView,
+    PortfolioDividendView,
     PortfolioFullAdviceView,
     PortfolioPerformanceView,
     PortfolioSummaryView,
@@ -34,6 +35,7 @@ urlpatterns = [
         "portfolios/<int:portfolio_id>/performance/", PortfolioPerformanceView.as_view(), name="portfolio-performance"
     ),
     path("portfolios/<int:portfolio_id>/allocation/", PortfolioAllocationView.as_view(), name="portfolio-allocation"),
+    path("portfolios/<int:portfolio_id>/dividends/", PortfolioDividendView.as_view(), name="portfolio-dividends"),
     path("portfolios/<int:portfolio_id>/advice/", PortfolioAdviceView.as_view(), name="portfolio-advice"),
     path(
         "portfolios/<int:portfolio_id>/advice/full/",

@@ -7,7 +7,8 @@ import pytest
 
 from apps.instruments.models import Instrument
 from apps.market_data.models import PriceCache
-from apps.market_data.services import MarketDataService
+from apps.market_data.providers.base import PricePoint
+from apps.market_data.services import BENCHMARK_MAP, MarketDataService
 
 
 @pytest.mark.django_db
@@ -82,3 +83,56 @@ class TestMarketDataService:
         service = MarketDataService()
         with pytest.raises(ValueError, match="No ticker"):
             service.get_ohlcv(self.inst_no_ticker, "6mo", "1d")
+
+
+@pytest.mark.django_db
+class TestGetBenchmarkSeries:
+    @patch("apps.market_data.services.MarketDataService.get_historical_prices_by_ticker")
+    def test_returns_base100_series(self, mock_hist):
+        mock_hist.return_value = [
+            PricePoint(date=date(2025, 1, 1), price=Decimal("100.00")),
+            PricePoint(date=date(2025, 1, 2), price=Decimal("105.00")),
+            PricePoint(date=date(2025, 1, 3), price=Decimal("110.00")),
+        ]
+        service = MarketDataService()
+        result = service.get_benchmark_series("sp500", date(2025, 1, 1), date(2025, 1, 3))
+
+        assert result is not None
+        assert len(result) == 3
+        assert result[0]["value"] == "100.00"
+        assert result[1]["value"] == "105.00"
+        assert result[2]["value"] == "110.00"
+
+    @patch("apps.market_data.services.MarketDataService.get_historical_prices_by_ticker")
+    def test_normalizes_to_base_100(self, mock_hist):
+        mock_hist.return_value = [
+            PricePoint(date=date(2025, 1, 1), price=Decimal("5000.00")),
+            PricePoint(date=date(2025, 1, 2), price=Decimal("5100.00")),
+        ]
+        service = MarketDataService()
+        result = service.get_benchmark_series("sp500", date(2025, 1, 1), date(2025, 1, 2))
+
+        assert result[0]["value"] == "100.00"
+        assert result[1]["value"] == "102.00"
+
+    @patch("apps.market_data.services.MarketDataService.get_historical_prices_by_ticker")
+    def test_unknown_benchmark_returns_none(self, mock_hist):
+        service = MarketDataService()
+        result = service.get_benchmark_series("nasdaq", date(2025, 1, 1), date(2025, 1, 3))
+
+        assert result is None
+        mock_hist.assert_not_called()
+
+    @patch("apps.market_data.services.MarketDataService.get_historical_prices_by_ticker")
+    def test_empty_prices_returns_none(self, mock_hist):
+        mock_hist.return_value = []
+        service = MarketDataService()
+        result = service.get_benchmark_series("sp500", date(2025, 6, 1), date(2025, 6, 3))
+
+        assert result is None
+
+    def test_benchmark_map_has_expected_keys(self):
+        assert "sp500" in BENCHMARK_MAP
+        assert "msci_world" in BENCHMARK_MAP
+        assert BENCHMARK_MAP["sp500"]["ticker"] == "^GSPC"
+        assert BENCHMARK_MAP["msci_world"]["ticker"] == "IWDA.AS"

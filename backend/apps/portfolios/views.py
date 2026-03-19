@@ -1,4 +1,5 @@
 import logging
+from collections import defaultdict
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -207,6 +208,112 @@ class PortfolioAllocationView(APIView):
         ]
 
         return Response(result)
+
+
+class PortfolioDividendView(APIView):
+    """Dividend income analytics: summary, monthly history, by instrument, recent payments."""
+
+    def get(self, request, portfolio_id):
+        portfolio = get_object_or_404(Portfolio, id=portfolio_id, user=request.user)
+
+        today = date.today()
+        twelve_months_ago = today - timedelta(days=365)
+
+        # All dividend transactions for this portfolio
+        all_dividends = (
+            portfolio.transactions.filter(type=TransactionType.DIVIDEND).select_related("instrument").order_by("-date")
+        )
+
+        # Compute totals
+        total_all_time = sum((tx.quantity * tx.price for tx in all_dividends), Decimal("0"))
+        dividends_12m = [tx for tx in all_dividends if tx.date >= twelve_months_ago]
+        total_12m = sum((tx.quantity * tx.price for tx in dividends_12m), Decimal("0"))
+        monthly_avg = total_12m / 12 if total_12m else Decimal("0")
+
+        # Trailing yield: total_12m / portfolio_value * 100
+        holdings = portfolio.holdings.select_related("instrument").all()
+        service = MarketDataService()
+        portfolio_value = Decimal("0")
+        for h in holdings:
+            try:
+                price_result = service.get_current_price(h.instrument)
+                portfolio_value += h.quantity * price_result.price
+            except Exception:
+                portfolio_value += h.quantity * h.avg_buy_price
+
+        trailing_yield = (total_12m / portfolio_value * 100) if portfolio_value else Decimal("0")
+
+        # Dividend-paying holding count (instruments that paid dividends in 12m)
+        dividend_instruments_12m = {tx.instrument_id for tx in dividends_12m}
+
+        # --- Monthly history (last 24 months, newest first) ---
+        monthly_totals = defaultdict(Decimal)
+        for tx in all_dividends:
+            month_key = tx.date.strftime("%Y-%m")
+            monthly_totals[month_key] += tx.quantity * tx.price
+
+        monthly_history = []
+        cursor = today.replace(day=1)
+        for _ in range(24):
+            month_key = cursor.strftime("%Y-%m")
+            monthly_history.append(
+                {
+                    "month": month_key,
+                    "amount": f"{monthly_totals.get(month_key, Decimal('0')):.2f}",
+                }
+            )
+            # Move to previous month
+            cursor = (cursor - timedelta(days=1)).replace(day=1)
+
+        # --- By instrument (12m, sorted by total desc) ---
+        inst_totals = defaultdict(lambda: {"total": Decimal("0"), "count": 0, "instrument": None})
+        for tx in dividends_12m:
+            entry = inst_totals[tx.instrument_id]
+            entry["total"] += tx.quantity * tx.price
+            entry["count"] += 1
+            entry["instrument"] = tx.instrument
+
+        by_instrument = []
+        for entry in sorted(inst_totals.values(), key=lambda e: -e["total"]):
+            inst = entry["instrument"]
+            pct = (entry["total"] / total_12m * 100) if total_12m else Decimal("0")
+            by_instrument.append(
+                {
+                    "instrument_name": inst.name,
+                    "ticker": inst.ticker or "",
+                    "total_12m": f"{entry['total']:.2f}",
+                    "pct_of_total": f"{pct:.1f}",
+                    "payment_count_12m": entry["count"],
+                }
+            )
+
+        # --- Recent payments (last 10) ---
+        recent_payments = []
+        for tx in all_dividends[:10]:
+            recent_payments.append(
+                {
+                    "date": str(tx.date),
+                    "instrument_name": tx.instrument.name,
+                    "ticker": tx.instrument.ticker or "",
+                    "amount": f"{tx.quantity * tx.price:.2f}",
+                }
+            )
+
+        return Response(
+            {
+                "summary": {
+                    "total_dividends_12m": f"{total_12m:.2f}",
+                    "total_dividends_all_time": f"{total_all_time:.2f}",
+                    "trailing_yield_pct": f"{trailing_yield:.2f}",
+                    "monthly_average_12m": f"{monthly_avg:.2f}",
+                    "dividend_holding_count": len(dividend_instruments_12m),
+                    "total_holding_count": holdings.count(),
+                },
+                "monthly_history": monthly_history,
+                "by_instrument": by_instrument,
+                "recent_payments": recent_payments,
+            }
+        )
 
 
 class PortfolioAdviceView(APIView):
