@@ -16,6 +16,7 @@ from .advice.context import DISCLAIMER, build_advice_context
 from .advice.engine import FULL_ADVICE_DISCLAIMER
 from .advice.recommendations import RecommendationEngine
 from .models import Holding, Portfolio, Transaction, TransactionType
+from .returns import calculate_twr, calculate_xirr
 from .serializers import (
     AdviceResponseSerializer,
     ChatRequestSerializer,
@@ -87,6 +88,10 @@ class PortfolioSummaryView(APIView):
 
         first_tx = portfolio.transactions.order_by("date").values_list("date", flat=True).first()
 
+        # Calculate advanced return metrics
+        twr = calculate_twr(portfolio, service)
+        xirr = calculate_xirr(portfolio, service)
+
         return Response(
             {
                 "total_value": f"{total_value:.2f}",
@@ -94,6 +99,8 @@ class PortfolioSummaryView(APIView):
                 "total_gain_loss": f"{total_value - total_cost:.2f}",
                 "total_return_pct": f"{((total_value - total_cost) / total_cost * 100):.2f}" if total_cost else "0.00",
                 "first_transaction_date": str(first_tx) if first_tx else None,
+                "twr_return_pct": f"{twr:.2f}" if twr is not None else None,
+                "xirr_return_pct": f"{xirr:.2f}" if xirr is not None else None,
             }
         )
 
