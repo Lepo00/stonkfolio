@@ -8,7 +8,7 @@ from rest_framework import generics, status, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.market_data.services import MarketDataService
+from apps.market_data.services import BENCHMARK_MAP, MarketDataService
 
 from .advice import AdviceEngine
 from .advice.chat import handle_chat_message
@@ -174,7 +174,35 @@ class PortfolioPerformanceView(APIView):
 
         series = [{"date": str(d), "value": f"{v:.2f}"} for d, v in sorted(series_map.items())]
 
-        return Response({"series": series})
+        # Handle benchmark
+        benchmark_key = request.query_params.get("benchmark")
+        benchmark_series = None
+        benchmark_name = None
+
+        if benchmark_key:
+            benchmark_series = service.get_benchmark_series(benchmark_key, start, end)
+            if benchmark_series:
+                benchmark_name = BENCHMARK_MAP[benchmark_key]["name"]
+
+        # When a benchmark is selected, normalize portfolio series to base-100 too
+        if benchmark_series and series:
+            base_value = Decimal(series[0]["value"])
+            if base_value > 0:
+                series = [
+                    {
+                        "date": point["date"],
+                        "value": f"{(Decimal(point['value']) / base_value * 100):.2f}",
+                    }
+                    for point in series
+                ]
+
+        return Response(
+            {
+                "series": series,
+                "benchmark_series": benchmark_series,
+                "benchmark_name": benchmark_name,
+            }
+        )
 
 
 ALLOWED_GROUP_BY = {"sector", "country", "asset_type", "currency"}

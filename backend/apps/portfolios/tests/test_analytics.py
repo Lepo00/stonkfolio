@@ -67,6 +67,81 @@ class TestPortfolioAnalytics:
         assert resp.status_code == status.HTTP_200_OK
         assert len(resp.data["series"]) > 0
 
+    @patch("apps.portfolios.views.MarketDataService")
+    def test_performance_with_benchmark(self, MockService):
+        Transaction.objects.create(
+            portfolio=self.portfolio,
+            instrument=self.inst,
+            type=TransactionType.BUY,
+            quantity=Decimal("10"),
+            price=Decimal("75.50"),
+            fee=Decimal("0"),
+            date=date(2025, 1, 1),
+            broker_source="degiro",
+            broker_reference="ref2",
+        )
+        MockService.return_value.get_historical_prices.return_value = [
+            PricePoint(date=date(2025, 1, 1), price=Decimal("75.50")),
+            PricePoint(date=date(2025, 1, 2), price=Decimal("76.00")),
+        ]
+        MockService.return_value.get_benchmark_series.return_value = [
+            {"date": "2025-01-01", "value": "100.00"},
+            {"date": "2025-01-02", "value": "101.00"},
+        ]
+        resp = self.client.get(f"/api/portfolios/{self.portfolio.id}/performance/?period=1W&benchmark=sp500")
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.data["benchmark_series"] is not None
+        assert len(resp.data["benchmark_series"]) == 2
+        assert resp.data["benchmark_name"] == "S&P 500"
+        # Portfolio series should also be normalized to base-100
+        assert resp.data["series"][0]["value"] == "100.00"
+
+    @patch("apps.portfolios.views.MarketDataService")
+    def test_performance_without_benchmark(self, MockService):
+        Transaction.objects.create(
+            portfolio=self.portfolio,
+            instrument=self.inst,
+            type=TransactionType.BUY,
+            quantity=Decimal("10"),
+            price=Decimal("75.50"),
+            fee=Decimal("0"),
+            date=date(2025, 1, 1),
+            broker_source="degiro",
+            broker_reference="ref3",
+        )
+        MockService.return_value.get_historical_prices.return_value = [
+            PricePoint(date=date(2025, 1, 1), price=Decimal("75.50")),
+            PricePoint(date=date(2025, 1, 2), price=Decimal("76.00")),
+        ]
+        resp = self.client.get(f"/api/portfolios/{self.portfolio.id}/performance/?period=1W")
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.data["benchmark_series"] is None
+        assert resp.data["benchmark_name"] is None
+        # Without benchmark, series should still be raw values (not normalized)
+        assert resp.data["series"][0]["value"] == "755.00"
+
+    @patch("apps.portfolios.views.MarketDataService")
+    def test_performance_invalid_benchmark_ignored(self, MockService):
+        Transaction.objects.create(
+            portfolio=self.portfolio,
+            instrument=self.inst,
+            type=TransactionType.BUY,
+            quantity=Decimal("10"),
+            price=Decimal("75.50"),
+            fee=Decimal("0"),
+            date=date(2025, 1, 1),
+            broker_source="degiro",
+            broker_reference="ref4",
+        )
+        MockService.return_value.get_historical_prices.return_value = [
+            PricePoint(date=date(2025, 1, 1), price=Decimal("75.50")),
+        ]
+        MockService.return_value.get_benchmark_series.return_value = None
+        resp = self.client.get(f"/api/portfolios/{self.portfolio.id}/performance/?period=1W&benchmark=invalid")
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.data["benchmark_series"] is None
+        assert resp.data["benchmark_name"] is None
+
     def test_allocation_by_sector(self):
         resp = self.client.get(f"/api/portfolios/{self.portfolio.id}/allocation/?group_by=sector")
         assert resp.status_code == status.HTTP_200_OK
