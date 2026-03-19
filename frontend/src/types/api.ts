@@ -47,6 +47,8 @@ export interface PortfolioSummary {
   total_gain_loss: string;
   total_return_pct: string;
   first_transaction_date: string | null;
+  twr_return_pct: string | null;
+  xirr_return_pct: string | null;
 }
 
 export interface PerformanceSeries {
