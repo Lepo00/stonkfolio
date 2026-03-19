@@ -332,7 +332,8 @@ function ChatSection({ portfolioId }: { portfolioId: number }) {
   const chatMutation = useMutation({
     mutationFn: (message: string) => sendAdviceChat(portfolioId, message),
     onSuccess: (data) => {
-      setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
+      const assistantMsg = data.messages?.find((m) => m.role === "assistant");
+      setMessages((prev) => [...prev, { role: "assistant", content: assistantMsg?.content ?? "No response." }]);
     },
     onError: () => {
       setMessages((prev) => [
@@ -485,18 +486,18 @@ export default function AdvicePage() {
       <HealthScoreSection data={data.health_score} />
 
       {/* Section 2: Top Actions */}
-      {data.top_actions.actions.length > 0 && (
-        <TopActionsSection actions={data.top_actions.actions} />
+      {data.top_actions.length > 0 && (
+        <TopActionsSection actions={data.top_actions} />
       )}
 
       {/* Section 3: Recommendations */}
-      {data.recommendations.recommendations.length > 0 && (
-        <RecommendationsSection recommendations={data.recommendations.recommendations} />
+      {data.recommendations.length > 0 && (
+        <RecommendationsSection recommendations={data.recommendations} />
       )}
 
       {/* Section 4: Scenarios */}
-      {data.scenarios.scenarios.length > 0 && (
-        <ScenariosSection scenarios={data.scenarios.scenarios} />
+      {data.scenarios.length > 0 && (
+        <ScenariosSection scenarios={data.scenarios} />
       )}
 
       {/* Section 5: AI Chat */}

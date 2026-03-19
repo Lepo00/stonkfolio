@@ -208,9 +208,9 @@ export interface Scenario {
 
 export interface FullAdviceResponse {
   health_score: HealthScore;
-  top_actions: { actions: TopAction[] };
-  recommendations: { recommendations: Recommendation[] };
-  scenarios: { scenarios: Scenario[] };
+  top_actions: TopAction[];
+  recommendations: Recommendation[];
+  scenarios: Scenario[];
   advice_items: AdviceItem[];
   has_pending_analysis: boolean;
   disclaimer: string;
