@@ -69,13 +69,19 @@ export default function PerformancePage() {
     );
   }
 
+  // Create a map of benchmark dates to values for alignment by date
+  const benchmarkMap = new Map<string, number>();
+  if (data?.benchmark_series) {
+    data.benchmark_series.forEach((b) => {
+      benchmarkMap.set(b.date, parseFloat(b.value));
+    });
+  }
+
   const series =
-    data?.series.map((p, i) => ({
-      date: p.date,
-      value: parseFloat(p.value),
-      benchmark: data.benchmark_series?.[i]
-        ? parseFloat(data.benchmark_series[i].value)
-        : undefined,
+    data?.series.map((s) => ({
+      date: s.date,
+      value: parseFloat(s.value),
+      benchmark: benchmarkMap.get(s.date),
     })) ?? [];
 
   const benchmarkName = data?.benchmark_name;
