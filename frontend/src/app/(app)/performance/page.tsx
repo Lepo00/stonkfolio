@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { usePortfolio } from "@/lib/portfolio-context";
-import { getPerformance } from "@/lib/api/portfolios";
+import { getPerformance, getSummary } from "@/lib/api/portfolios";
+import type { RiskMetrics } from "@/types/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LineChart as LineChartIcon } from "lucide-react";
@@ -47,6 +48,15 @@ export default function PerformancePage() {
       ),
     enabled: !!selected,
   });
+
+  const { data: summaryData } = useQuery({
+    queryKey: ["summary", selected?.id],
+    queryFn: () => getSummary(selected!.id),
+    enabled: !!selected,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const riskMetrics = summaryData?.risk_metrics ?? null;
 
   if (!selected) {
     return (
@@ -219,6 +229,104 @@ export default function PerformancePage() {
           </CardContent>
         </Card>
       )}
+
+      {riskMetrics && hasAnyMetric(riskMetrics) && (
+        <div>
+          <h2 className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-3">
+            Risk Metrics
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+            <RiskMetricCard
+              label="Sharpe Ratio"
+              value={riskMetrics.sharpe_ratio}
+              description="Risk-adjusted return (higher is better)"
+              colorFn={sharpeColor}
+            />
+            <RiskMetricCard
+              label="Sortino Ratio"
+              value={riskMetrics.sortino_ratio}
+              description="Downside risk-adjusted return"
+              colorFn={sharpeColor}
+            />
+            <RiskMetricCard
+              label="Beta"
+              value={riskMetrics.beta}
+              description="Sensitivity to S&P 500 movements"
+            />
+            <RiskMetricCard
+              label="Alpha"
+              value={riskMetrics.alpha}
+              format="pct"
+              description="Excess return vs benchmark (annualized)"
+              colorFn={alphaColor}
+            />
+            <RiskMetricCard
+              label="Volatility"
+              value={riskMetrics.annualized_volatility}
+              format="pct"
+              description="Annualized standard deviation"
+            />
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+function hasAnyMetric(m: RiskMetrics): boolean {
+  return (
+    m.sharpe_ratio !== null ||
+    m.sortino_ratio !== null ||
+    m.beta !== null ||
+    m.alpha !== null ||
+    m.annualized_volatility !== null
+  );
+}
+
+function sharpeColor(v: number): string {
+  if (v >= 1) return "text-green-600 dark:text-green-400";
+  if (v >= 0.5) return "text-amber-600 dark:text-amber-400";
+  return "text-red-600 dark:text-red-400";
+}
+
+function alphaColor(v: number): string {
+  return v >= 0
+    ? "text-green-600 dark:text-green-400"
+    : "text-red-600 dark:text-red-400";
+}
+
+function RiskMetricCard({
+  label,
+  value,
+  format,
+  description,
+  colorFn,
+}: {
+  label: string;
+  value: number | null;
+  format?: "pct";
+  description: string;
+  colorFn?: (v: number) => string;
+}) {
+  const display =
+    value !== null
+      ? format === "pct"
+        ? `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`
+        : value.toFixed(2)
+      : "--";
+
+  const colorClass =
+    value !== null && colorFn ? colorFn(value) : "text-foreground";
+
+  return (
+    <Card>
+      <CardContent className="py-3">
+        <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+          {label}
+        </p>
+        <p className={`text-lg font-bold mt-0.5 ${colorClass}`}>{display}</p>
+        <p className="text-[11px] text-muted-foreground mt-1">{description}</p>
+      </CardContent>
+    </Card>
   );
 }

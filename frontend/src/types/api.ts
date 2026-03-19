@@ -41,6 +41,14 @@ export interface Transaction {
   broker_reference: string;
 }
 
+export interface RiskMetrics {
+  sharpe_ratio: number | null;
+  sortino_ratio: number | null;
+  beta: number | null;
+  alpha: number | null;
+  annualized_volatility: number | null;
+}
+
 export interface PortfolioSummary {
   total_value: string;
   total_cost: string;
@@ -50,6 +58,7 @@ export interface PortfolioSummary {
   twr_return_pct: string | null;
   xirr_return_pct: string | null;
   benchmark_return_pct: string | null;
+  risk_metrics: RiskMetrics | null;
 }
 
 export interface PerformanceSeries {
@@ -221,6 +230,12 @@ export interface ChatMessage {
   content: string;
 }
 
+export interface CorrelationData {
+  tickers: string[];
+  matrix: number[][];
+  names: string[];
+}
+
 export interface DividendSummary {
   total_dividends_12m: string;
   total_dividends_all_time: string;
@@ -255,4 +270,22 @@ export interface DividendResponse {
   monthly_history: DividendMonthly[];
   by_instrument: DividendByInstrument[];
   recent_payments: DividendPayment[];
+}
+
+export interface RebalanceHolding {
+  ticker: string;
+  name: string;
+  current_weight: number;
+  target_weight: number;
+  drift: number;
+  action: "BUY" | "SELL" | "HOLD";
+  amount_eur: string;
+}
+
+export interface RebalanceResponse {
+  strategy: string;
+  total_value: string;
+  holdings: RebalanceHolding[];
+  max_drift: number;
+  rebalance_needed: boolean;
 }

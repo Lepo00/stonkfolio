@@ -3,6 +3,7 @@ import type {
   Portfolio, Holding, Transaction, PortfolioSummary,
   PerformanceSeries, AllocationItem, PaginatedResponse,
   AdviceResponse, FullAdviceResponse, DividendResponse, ChatMessage,
+  CorrelationData, RebalanceResponse,
 } from "@/types/api";
 
 export async function listPortfolios() {
@@ -57,4 +58,12 @@ export async function sendAdviceChat(portfolioId: number, message: string) {
 
 export async function getDividends(portfolioId: number) {
   return apiClient<DividendResponse>(`/portfolios/${portfolioId}/dividends/`);
+}
+
+export async function getCorrelation(portfolioId: number) {
+  return apiClient<CorrelationData>(`/portfolios/${portfolioId}/correlation/`);
+}
+
+export async function getRebalance(portfolioId: number, strategy: string = "equal_weight") {
+  return apiClient<RebalanceResponse>(`/portfolios/${portfolioId}/rebalance/?strategy=${strategy}`);
 }
