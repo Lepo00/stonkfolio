@@ -171,11 +171,11 @@ export default function DashboardPage() {
   const sinceLabel = formatSinceDate(summary?.first_transaction_date ?? null);
 
   return (
-    <div className="p-4 h-full flex flex-col justify-center overflow-hidden">
-      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-3">
-        {/* --- Hero: Total Value (top-left) --- */}
+    <div className="p-4 h-full flex flex-col overflow-hidden gap-3">
+      {/* Top row: Hero + Today */}
+      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-3 shrink-0">
         <Card className="shadow-sm">
-          <CardContent className="pt-4 pb-3">
+          <CardContent className="py-3">
             <p className={labelClasses}>Total Value</p>
             <p className="text-3xl font-bold mt-0.5">
               &euro;{formatCurrency(totalValue)}
@@ -194,9 +194,8 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* --- Today (top-right) --- */}
         <Card className="shadow-sm">
-          <CardContent className="pt-4 pb-3">
+          <CardContent className="py-3">
             <p className={labelClasses}>Today</p>
             {todayGL !== null ? (
               <>
@@ -216,67 +215,65 @@ export default function DashboardPage() {
                 </p>
               </>
             ) : (
-              <p className="text-xl font-bold mt-0.5 text-muted-foreground">
-                --
-              </p>
+              <p className="text-xl font-bold mt-0.5 text-muted-foreground">--</p>
             )}
           </CardContent>
         </Card>
+      </div>
 
-        {/* --- Performance chart (bottom-left) --- */}
-        <Card className="shadow-sm">
-          <CardContent className="pt-3 pb-2">
+      {/* Middle row: Chart + Overall G/L — fills remaining space */}
+      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-3 flex-1 min-h-0">
+        <Card className="shadow-sm flex flex-col min-h-0">
+          <CardContent className="pt-3 pb-2 flex-1 flex flex-col min-h-0">
             {perfError ? (
-              <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground gap-2">
+              <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2">
                 <BarChart3 className="size-10 opacity-40" />
                 <p className="text-sm">Chart unavailable</p>
               </div>
             ) : perfLoading ? (
-              <div className="animate-pulse bg-muted rounded-xl h-[200px]" />
+              <div className="animate-pulse bg-muted rounded-xl flex-1" />
             ) : (
-              <ResponsiveContainer width="100%" height={200}>
-                <AreaChart data={chartData}>
-                  <defs>
-                    <linearGradient id="valueGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#2563eb" stopOpacity={0.3} />
-                      <stop offset="100%" stopColor="#2563eb" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis
-                    dataKey="date"
-                    tickLine={false}
-                    axisLine={false}
-                    tick={{ fontSize: 11 }}
-                    minTickGap={40}
-                  />
-                  <YAxis
-                    hide
-                    domain={["auto", "auto"]}
-                  />
-                  <Tooltip
-                    formatter={(v) => [`\u20AC${formatCurrency(Number(v))}`, "Value"]}
-                    labelStyle={{ fontSize: 12 }}
-                    contentStyle={{ borderRadius: 8, fontSize: 13, fontFamily: "inherit" }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="value"
-                    stroke="#2563eb"
-                    strokeWidth={2}
-                    fill="url(#valueGradient)"
-                    dot={false}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              <div className="flex-1 min-h-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData}>
+                    <defs>
+                      <linearGradient id="valueGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#2563eb" stopOpacity={0.3} />
+                        <stop offset="100%" stopColor="#2563eb" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis
+                      dataKey="date"
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fontSize: 11 }}
+                      minTickGap={40}
+                    />
+                    <YAxis hide domain={["auto", "auto"]} />
+                    <Tooltip
+                      formatter={(v) => [`\u20AC${formatCurrency(Number(v))}`, "Value"]}
+                      labelStyle={{ fontSize: 12 }}
+                      contentStyle={{ borderRadius: 8, fontSize: 13, fontFamily: "inherit" }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="value"
+                      stroke="#2563eb"
+                      strokeWidth={2}
+                      fill="url(#valueGradient)"
+                      dot={false}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
             )}
-            {/* Period toggles */}
-            <div className="flex gap-1 mt-2 justify-center">
+            <div className="flex gap-1 mt-1 justify-center shrink-0">
               {PERIODS.map((p) => (
                 <Button
                   key={p}
                   variant={period === p ? "default" : "ghost"}
                   size="sm"
-                  className="h-7 px-2.5 text-xs rounded-full"
+                  className="h-6 px-2 text-xs rounded-full"
                   onClick={() => setPeriod(p)}
                 >
                   {p}
@@ -286,9 +283,8 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* --- Overall Gain/Loss (bottom-right) --- */}
         <Card className="shadow-sm">
-          <CardContent className="pt-4 pb-3 flex flex-col justify-between h-full">
+          <CardContent className="py-3 flex flex-col justify-between h-full">
             <div>
               <p className={labelClasses}>Overall Gain/Loss</p>
               <div className={`flex items-center gap-1.5 mt-0.5 ${colorClasses(isPositive)}`}>
@@ -307,19 +303,17 @@ export default function DashboardPage() {
               </p>
             </div>
             {sinceLabel && (
-              <p className="text-xs text-muted-foreground mt-2">
-                {sinceLabel}
-              </p>
+              <p className="text-xs text-muted-foreground mt-2">{sinceLabel}</p>
             )}
           </CardContent>
         </Card>
       </div>
 
-      {/* AI Portfolio Advice */}
-      <Card className="shadow-sm mt-3 min-h-0 flex-shrink">
-        <CardContent className="pt-3 pb-3">
-          <div className="flex items-center gap-2 mb-2">
-            <Sparkles className="size-4 text-primary" />
+      {/* Bottom: AI Portfolio Advice — compact, never grows */}
+      <Card className="shadow-sm shrink-0">
+        <CardContent className="py-3">
+          <div className="flex items-center gap-2 mb-1.5">
+            <Sparkles className="size-3.5 text-primary" />
             <p className={labelClasses}>Portfolio Insights</p>
             {adviceData?.has_pending_analysis && (
               <span className="relative flex size-2">
@@ -329,26 +323,25 @@ export default function DashboardPage() {
             )}
           </div>
           {adviceLoading || (adviceData?.has_pending_analysis && !adviceData.items.length) ? (
-            <div className="space-y-2">
-              <div className="animate-pulse bg-muted rounded h-4 w-full" />
-              <div className="animate-pulse bg-muted rounded h-4 w-3/4" />
-              <div className="animate-pulse bg-muted rounded h-4 w-1/2" />
+            <div className="space-y-1.5">
+              <div className="animate-pulse bg-muted rounded h-3 w-full" />
+              <div className="animate-pulse bg-muted rounded h-3 w-3/4" />
             </div>
           ) : adviceData?.items.length ? (
             <>
-              <div className="max-h-[150px] overflow-y-auto space-y-1.5">
-                {(adviceExpanded ? adviceData.items : adviceData.items.slice(0, 5)).map((item) => {
+              <div className="max-h-[120px] overflow-y-auto space-y-1">
+                {(adviceExpanded ? adviceData.items : adviceData.items.slice(0, 3)).map((item) => {
                   const Icon = CATEGORY_ICONS[item.category];
                   return (
                     <div
                       key={item.rule_id}
-                      className={`border-l-[3px] ${PRIORITY_BORDER[item.priority]} pl-3 py-1`}
+                      className={`border-l-[3px] ${PRIORITY_BORDER[item.priority]} pl-2.5 py-0.5`}
                     >
                       <div className="flex items-center gap-1.5">
-                        <Icon className={`size-3.5 shrink-0 ${PRIORITY_ICON_COLOR[item.priority]}`} />
-                        <span className="text-sm font-medium leading-tight">{item.title}</span>
+                        <Icon className={`size-3 shrink-0 ${PRIORITY_ICON_COLOR[item.priority]}`} />
+                        <span className="text-xs font-medium leading-tight">{item.title}</span>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
+                      <p className="text-[11px] text-muted-foreground leading-snug">
                         {item.message.split(/\*\*(.*?)\*\*/g).map((part, j) =>
                           j % 2 === 1 ? (
                             <strong key={j} className="text-foreground">{part}</strong>
@@ -361,22 +354,20 @@ export default function DashboardPage() {
                   );
                 })}
               </div>
-              {adviceData.items.length > 5 && (
+              {adviceData.items.length > 3 && (
                 <button
                   onClick={() => setAdviceExpanded((v) => !v)}
-                  className="text-xs text-primary hover:underline mt-2"
+                  className="text-[11px] text-primary hover:underline mt-1"
                 >
-                  {adviceExpanded ? "Show less" : `Show ${adviceData.items.length - 5} more`}
+                  {adviceExpanded ? "Show less" : `Show ${adviceData.items.length - 3} more`}
                 </button>
               )}
               {adviceData.disclaimer && (
-                <p className="text-[10px] text-muted-foreground/60 mt-3">
-                  {adviceData.disclaimer}
-                </p>
+                <p className="text-[10px] text-muted-foreground/60 mt-2">{adviceData.disclaimer}</p>
               )}
             </>
           ) : (
-            <p className="text-sm text-muted-foreground">No advice available.</p>
+            <p className="text-xs text-muted-foreground">No advice available.</p>
           )}
         </CardContent>
       </Card>
