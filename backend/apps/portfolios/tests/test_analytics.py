@@ -151,3 +151,42 @@ class TestPortfolioAnalytics:
     def test_allocation_invalid_group_by(self):
         resp = self.client.get(f"/api/portfolios/{self.portfolio.id}/allocation/?group_by=password")
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
+
+    @patch("apps.portfolios.views.MarketDataService")
+    def test_summary_includes_twr_and_xirr(self, MockService):
+        """Summary response should include twr_return_pct and xirr_return_pct fields."""
+        Transaction.objects.create(
+            portfolio=self.portfolio,
+            instrument=self.inst,
+            type=TransactionType.BUY,
+            quantity=Decimal("10"),
+            price=Decimal("75.50"),
+            fee=Decimal("0"),
+            date=date(2025, 1, 1),
+            broker_source="degiro",
+            broker_reference="ref_twr",
+        )
+        MockService.return_value.get_current_price.return_value = PriceResult(
+            price=Decimal("80.00"),
+            currency="EUR",
+        )
+        MockService.return_value.get_historical_prices.return_value = [
+            PricePoint(date=date(2025, 1, 1), price=Decimal("75.50")),
+            PricePoint(date=date(2025, 1, 2), price=Decimal("80.00")),
+        ]
+        resp = self.client.get(f"/api/portfolios/{self.portfolio.id}/summary/")
+        assert resp.status_code == status.HTTP_200_OK
+        assert "twr_return_pct" in resp.data
+        assert "xirr_return_pct" in resp.data
+
+    @patch("apps.portfolios.views.MarketDataService")
+    def test_summary_returns_null_metrics_without_transactions(self, MockService):
+        """With no transactions, TWR and XIRR should be null."""
+        MockService.return_value.get_current_price.return_value = PriceResult(
+            price=Decimal("80.00"),
+            currency="EUR",
+        )
+        resp = self.client.get(f"/api/portfolios/{self.portfolio.id}/summary/")
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.data["twr_return_pct"] is None
+        assert resp.data["xirr_return_pct"] is None
